@@ -539,7 +539,7 @@ classdef HIFGraph < handle
         
         disp('  ');
         disp(' End solve ');
-        disp(' Type obj.solution to get the solution');
+        disp(' The solution is stored in obj.solution.');
         disp('  ');
         
         end
