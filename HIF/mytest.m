@@ -40,7 +40,7 @@ testHIF = HIFSolve(testHIF,b);
 norm(testHIF.solution - x)
 
 %%
-[A,xy] = grid5(16);
+[A,xy] = grid5(15);
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;

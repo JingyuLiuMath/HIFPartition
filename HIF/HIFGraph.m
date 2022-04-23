@@ -18,6 +18,8 @@ classdef HIFGraph < handle
         nb; % Neighbor vertices.
         int; % Interior vertices. 
         nbA; % Adjacency matrix of sep (row) and nb (col).
+        sk; % Skeleton seps.
+        re; % Redundant seps.
         
         % Partition properties.
         
@@ -42,8 +44,12 @@ classdef HIFGraph < handle
         ASI;
         ASS; 
         ANS;
-        AIIinv; % Maybe we can store it in AII
-        AIIinvAIS; % Maybe we can store it in ASI
+        AIIinv; % AII^{-1} = L L^{T}, AIIinv = L^{-T}.
+        AIIinvAIS; % AIIinvAIS = AII^{-1} AIS
+        p; % Permutation vector.
+        T; %  Interpolation matrix.
+        ASSinv;
+        ASSinvBhbT;
         
         % Vectors properties.
         
@@ -323,6 +329,8 @@ classdef HIFGraph < handle
         for tmplevel = obj.numLevels:-1:1
             % Sparse elimination.
             obj = RecursiveSparseElim(obj, tmplevel);
+            % Skeletonization.
+            obj = RecursiveSkel(obj,tmplevel);
             % Merge.
             obj = RecursiveMerge(obj, tmplevel-1);
         end
@@ -358,6 +366,35 @@ classdef HIFGraph < handle
         obj.AIIinvAIS = L\(obj.ASI');
         obj.AIIinvAIS = L'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} AIS
         obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS;
+        
+        end
+        
+        function obj = RecursiveSkel(obj,whatlevel)
+        % RecursiveSkel Recursively skeletonization.
+        
+        if obj.level == whatlevel
+            obj = Skel(obj);
+        else
+            for iter = [1,2]
+                obj.children{iter} = RecursiveSkel(obj.children{iter},whatlevel);
+            end
+        end
+        
+        end
+        
+        function obj = Skel(obj)
+        % Skel Skeletonization.
+        
+        [ANShat,Tmat,pvec,k] = ID(obj.ANS);
+        % ANS(:,p) = [ANShat,ANShat*T] where k is the number of sk.
+        p1 = pvec(1:k);
+        p2 = pvec(k+1:end);
+        obj.sk = obj.sep(p1);
+        obj.re = obj.sep(p2);
+        obj.root.active(obj.sk) = 0;
+        obj.T = Tmat;
+        obj.p = pvec;
+        
         
         end
         
