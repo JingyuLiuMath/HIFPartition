@@ -46,10 +46,10 @@ classdef HIFGraph < handle
         ANS;
         AIIinv; % AII^{-1} = L L^{T}, AIIinv = L^{-T}.
         AIIinvAIS; % AIIinvAIS = AII^{-1} AIS
-        p; % Permutation vector.
-        T; %  Interpolation matrix.
-        ASSinv;
-        ASSinvBhbT;
+        pS; % Permutation vector.
+        Tsr; %  Interpolation matrix.
+        Arrinv;
+        ArrinvAsrT;
         
         % Vectors properties.
         
@@ -361,10 +361,10 @@ classdef HIFGraph < handle
         % SparseElim Sparse elimination.
         
         obj.root.active(obj.int) = 0;
-        L = chol(obj.AII,'lower'); % AII = L L^T.
-        obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}
+        L = chol(obj.AII,'lower'); % AII = L*L^T.
+        obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}.
         obj.AIIinvAIS = L\(obj.ASI');
-        obj.AIIinvAIS = L'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} AIS
+        obj.AIIinvAIS = L'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1}*AIS.
         obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS;
         
         end
@@ -385,16 +385,35 @@ classdef HIFGraph < handle
         function obj = Skel(obj)
         % Skel Skeletonization.
         
-        [ANShat,Tmat,pvec,k] = ID(obj.ANS);
+        [~,T,p,k] = ID(obj.ANS);
         % ANS(:,p) = [ANShat,ANShat*T] where k is the number of sk.
-        p1 = pvec(1:k);
-        p2 = pvec(k+1:end);
+        p1 = p(1:k);
+        p2 = p(k+1:end);
         obj.sk = obj.sep(p1);
         obj.re = obj.sep(p2);
         obj.root.active(obj.sk) = 0;
-        obj.T = Tmat;
-        obj.p = pvec;
+        obj.Tsr = T;
+        obj.pS = p;
         
+        % tmp1 = Tsr^{T} Asr, tmp2 = Ass Tsr.
+        tmp1 = T'* obj.ASS(p1,p2);
+        tmp2 = obj.ASS(p1,p1)*T;
+        obj.ASS(p2,p2) = obj.ASS(p2,p2) - tmp1 - tmp1'+ T'*tmp2;
+        obj.ASS(p1,p2) = obj.ASS(p1,p2) - tmp2;
+        obj.ANS(:,p2) = 0;
+        
+        % Sparse elimination.
+        L = chol(obj.ASS(p1,p1),'lower'); % Arr = L*L^T.
+        obj.Arrinv =  L'\eye(size(L,1)); % Arrinv = L^{-T}.
+        obj.ArrinvAsrT = L\(obj.ASS(p1,p2)');
+        obj.ArrinvAsrT = L'\obj.ArrinvAsrT;
+        obj.ASS(p1,p1) = obj.ASS(p1,p1) - obj.ASS(p1,p2)*obj.ArrinvAsrT;
+        
+        % Tell nbNodes the ANS has changed.
+        
+        for j = 1:length(obj.sep)
+            
+        end
         
         end
         
@@ -418,7 +437,7 @@ classdef HIFGraph < handle
         
         % First we tell the parent what its int is after we eliminate
         % the children's vtx.
-        % int: children's sep - sep
+        % int: children's sep - sep.
         
         for iter = [1,2]
             obj.int = [obj.int,obj.children{iter}.sep];
