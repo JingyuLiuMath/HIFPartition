@@ -45,11 +45,12 @@ classdef HIFGraph < handle
         ASS; 
         ANS;
         AIIinv; % AII^{-1} = L L^{T}, AIIinv = L^{-T}.
-        AIIinvAIS; % AIIinvAIS = AII^{-1} AIS
-        pS; % Permutation vector.
+        AIIinvAIS; % AIIinvAIS = AII^{-1} AIS.
+        ps; % Permutation vector.
+        pr; % Permutation vector.
         Tsr; %  Interpolation matrix.
         Arrinv;
-        ArrinvAsrT;
+        ArrinvArs;
         
         % Vectors properties.
         
@@ -374,6 +375,7 @@ classdef HIFGraph < handle
         
         if obj.level == whatlevel
             obj = Skel(obj);
+            % obj = NoSkel(obj);
         else
             for iter = [1,2]
                 obj.children{iter} = RecursiveSkel(obj.children{iter},whatlevel);
@@ -385,35 +387,43 @@ classdef HIFGraph < handle
         function obj = Skel(obj)
         % Skel Skeletonization.
         
-        [~,T,p,k] = ID(obj.ANS);
-        % ANS(:,p) = [ANShat,ANShat*T] where k is the number of sk.
-        p1 = p(1:k);
-        p2 = p(k+1:end);
+        % ID decomposition.
+        [T,p1,p2] = ID([obj.ASS;obj.ANS], 1e-2);
+        if ~isempty(p1) && ~isempty(p2) 
+            disp("We actually skel")
+        end
+        
+        % ANS(:,p2) approx ANS(:,p1) * T where k is the number of sk.
         obj.sk = obj.sep(p1);
         obj.re = obj.sep(p2);
-        obj.root.active(obj.sk) = 0;
         obj.Tsr = T;
-        obj.pS = p;
+        obj.ps = p1;
+        obj.pr = p2;
         
-        % tmp1 = Tsr^{T} Asr, tmp2 = Ass Tsr.
+        
+        % tmp1 = Tsr^{T} * Asr, tmp2 = Ass * Tsr.
         tmp1 = T'* obj.ASS(p1,p2);
         tmp2 = obj.ASS(p1,p1)*T;
         obj.ASS(p2,p2) = obj.ASS(p2,p2) - tmp1 - tmp1'+ T'*tmp2;
         obj.ASS(p1,p2) = obj.ASS(p1,p2) - tmp2;
+        obj.ASS(p2,p1) = obj.ASS(p1,p2)';
         obj.ANS(:,p2) = 0;
         
         % Sparse elimination.
-        L = chol(obj.ASS(p1,p1),'lower'); % Arr = L*L^T.
+        obj.root.active(obj.re) = 0;
+        L = chol(obj.ASS(p2,p2),'lower'); % Arr = L*L^T.
         obj.Arrinv =  L'\eye(size(L,1)); % Arrinv = L^{-T}.
-        obj.ArrinvAsrT = L\(obj.ASS(p1,p2)');
-        obj.ArrinvAsrT = L'\obj.ArrinvAsrT;
-        obj.ASS(p1,p1) = obj.ASS(p1,p1) - obj.ASS(p1,p2)*obj.ArrinvAsrT;
+        obj.ArrinvArs = L\(obj.ASS(p1,p2)');
+        obj.ArrinvArs = L'\obj.ArrinvArs;
+        obj.ASS(p1,p1) = obj.ASS(p1,p1) - obj.ASS(p1,p2)*obj.ArrinvArs;
         
-        % Tell nbNodes the ANS has changed.
-        
-        for j = 1:length(obj.sep)
-            
         end
+        
+        function obj = NoSkel(obj)
+        % NoSkel No skeletonization.
+        
+        obj.sk = obj.sep;
+        obj.ps = 1:1:length(obj.sep);
         
         end
         
@@ -435,14 +445,25 @@ classdef HIFGraph < handle
         
         % We stand on the parent level.
         
-        % First we tell the parent what its int is after we eliminate
-        % the children's vtx.
-        % int: children's sep - sep.
+        % First we tell the parent what's its int, sep, nb after
+        % eliminating the children's vtx.
+        % sep: sep - children's re.
+        % int: children's sk - sep.
+        % nb: from root's A; 
         
+        tmpre = [];
         for iter = [1,2]
-            obj.int = [obj.int,obj.children{iter}.sep];
+            obj.int = [obj.int,obj.children{iter}.sk];
+            tmpre = [tmpre,obj.children{iter}.re];
         end
+        obj.sep = setdiff(obj.sep,tmpre,'sorted');
         obj.int = setdiff(obj.int,obj.sep,'sorted');
+        obj.nb = [];
+        for i =1:length(obj.sep)
+            obj.nb = [obj.nb,find(obj.root.inputAxy.A(:,obj.sep(i)) ~= 0)'];
+        end
+        obj.nb = sort(obj.nb);
+        obj.nb = unique(obj.nb);
         
         % Next we assign the corresponding matrices.
         % From child to parent.
@@ -642,8 +663,15 @@ classdef HIFGraph < handle
         function obj = ApplyUp(obj)
         %ApplyUp Phase 1 for applying HIF
         
+        % Apply sparse eliminination.
         obj.xS = obj.xS - obj.AIIinvAIS'*obj.xI;
         obj.xI = obj.AIIinv'*obj.xI;
+        
+        % Apply skeletonization.
+        obj.xS(obj.pr) = obj.xS(obj.pr) - obj.Tsr' * obj.xS(obj.ps);
+        
+        obj.xS(obj.ps) = obj.xS(obj.ps) - obj.ArrinvArs' * obj.xS(obj.pr);
+        obj.xS(obj.pr) = obj.Arrinv'*obj.xS(obj.pr);
         
         end
         
@@ -754,6 +782,11 @@ classdef HIFGraph < handle
         function obj = ApplyDown(obj)
         % ApplyDown Phase 2 for applying HIF.
         
+        % Apply skeletonization.
+        obj.xS(obj.ps) = obj.xS(obj.ps) - obj.Tsr * obj.xS(obj.pr);
+        obj.xS(obj.pr) = obj.Arrinv * obj.xS(obj.pr) - obj.ArrinvArs * obj.xS(obj.ps);
+        
+        % Apply sparse elminination.
         obj.xI = obj.AIIinv*obj.xI - obj.AIIinvAIS*obj.xS;
         
         end
@@ -767,11 +800,13 @@ classdef HIFGraph < handle
         
         if obj.endFlag == 0
             obj.root.solution(obj.int) = obj.xI;
+            obj.root.solution(obj.re) = obj.xS(obj.pr);
             for iter = [1,2]
                 obj.children{iter} = GetSolution(obj.children{iter});
             end
         else
             obj.root.solution(obj.int) = obj.xI;
+            obj.root.solution(obj.re) = obj.xS(obj.pr);
         end
         
         end

@@ -28,31 +28,31 @@ xy = [1,4;
 Axy.A = A;
 Axy.xy = xy;
 
-testHIF = HIFGraph(Axy);
-testHIF = BuildTree(testHIF);
-testHIF = SetNbNodes(testHIF);
+HIF = HIFGraph(Axy);
+HIF = BuildTree(HIF);
+HIF = SetNbNodes(HIF);
 % DemoPart(testHIF)
-testHIF = FillTree(testHIF);
-testHIF = Factorization(testHIF);
+HIF = FillTree(HIF);
+HIF = Factorization(HIF);
 x = ones(size(A,1),1);
 b = A*x;
-testHIF = HIFSolve(testHIF,b);
-norm(testHIF.solution - x)
+HIF = HIFSolve(HIF,b);
+disp(norm(HIF.solution - x))
 
 %%
-[A,xy] = grid5(15);
+[A,xy] = grid5(16);
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;
 % Axy.xy = []
 
-testHIF = HIFGraph(Axy);
-testHIF = BuildTree(testHIF);
-testHIF = SetNbNodes(testHIF);
-DemoPart(testHIF)
-testHIF = FillTree(testHIF);
-testHIF = Factorization(testHIF);
+HIF = HIFGraph(Axy);
+HIF = BuildTree(HIF);
+HIF = SetNbNodes(HIF);
+DemoPart(HIF)
+HIF = FillTree(HIF);
+HIF = Factorization(HIF);
 x = rand(size(A,1),1);
 b = A*x;
-testHIF = HIFSolve(testHIF,b);
-norm(testHIF.solution - x)
+HIF = HIFSolve(HIF,b);
+norm(HIF.solution - x)
