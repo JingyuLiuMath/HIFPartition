@@ -2,23 +2,23 @@ classdef MFGraph < handle
     % MFGraph Multifrontal algorithm on general graphs.
     
     properties
-        
         % Root properties.
         
         % The following information will be stored only in the root node.
         
         inputAxy; % Input Axy.
-        active; % Whether a vtx is eliminated. 
+        active; % Whether a vtx is eliminated.
         inputVec; % Input vec.
         solution; % Solution.
-
+        demoMF = 0; % Whether to demo our MF process.
+        
         % Graph properties.
         
         Axy; % Adjacency matrix (and coordinates of vertices).
         vtx; % Vertices on the graph.
         sep; % Separator vertices.
         nb; % Neighbor vertices.
-        int; % Interior vertices. 
+        int; % Interior vertices.
         nbA; % Adjacency matrix of sep (row) and nb (col).
         
         % Partition properties.
@@ -40,11 +40,11 @@ classdef MFGraph < handle
         % For the following matrices, the fist index is row, and the second
         % index is col.
         
-        AII; % Interaction between int and int. 
-        ASI; % Interaction between sep and int. 
-        ASS; % Interaction between sep and sep. 
-        ANS; % Interaction between nb and sep. 
-        AIIinv; % AIIinv = L^{-T} where AII = L * L^{T}. 
+        AII; % Interaction between int and int.
+        ASI; % Interaction between sep and int.
+        ASS; % Interaction between sep and sep.
+        ANS; % Interaction between nb and sep.
+        AIIinv; % AIIinv = L^{-T} where AII = L * L^{T}.
         AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}
         
         % Vectors properties.
@@ -88,9 +88,9 @@ classdef MFGraph < handle
         % BuildTree Build tree structure according to a graph partition algorithm.
         
         if obj.level == 0
-            disp('  ');
-            disp(' Start build tree ');
-            disp('  ');
+            disp("  ");
+            disp(" Start build tree ");
+            disp("  ");
         end
         
         numtries = 30; % Only useful when using geopart.
@@ -108,7 +108,7 @@ classdef MFGraph < handle
             % Specpart.
             [p1,p2,sep1,sep2] = specpart(obj.Axy.A);
             sep1 = unique(sep1);
-            sep2 = unique(sep2);            
+            sep2 = unique(sep2);
             child1Axy.A = obj.Axy.A(p1,p1); child1Axy.xy = [];
             child2Axy.A = obj.Axy.A(p2,p2); child2Axy.xy = [];
         else
@@ -119,31 +119,31 @@ classdef MFGraph < handle
             child1Axy.A = obj.Axy.A(p1,p1); child1Axy.xy = obj.Axy.xy(p1,:);
             child2Axy.A = obj.Axy.A(p2,p2); child2Axy.xy = obj.Axy.xy(p2,:);
         end
-
+        
         % Create children MF.
         obj.children{1} = MFGraph(child1Axy,obj.level+1,obj.seqNum*2,...
             obj.vtx(p1),obj.vtx(sep1),obj.vtx(sep2),obj.Axy.A(sep1,sep2));
         obj.children{1}.root = obj.root;
         obj.children{2} = MFGraph(child2Axy,obj.level+1,obj.seqNum*2+1,...
-            obj.vtx(p2),obj.vtx(sep2),obj.vtx(sep1),obj.Axy.A(sep2,sep1));      
+            obj.vtx(p2),obj.vtx(sep2),obj.vtx(sep1),obj.Axy.A(sep2,sep1));
         obj.children{2}.root = obj.root;
-
+        
         % Pass information to its children.
         obj = Pass(obj);
-
+        
         % Recursively buildtree.
         for iter = [1,2]
             obj.children{iter} = BuildTree(obj.children{iter});
             obj.children{iter}.parent = obj;
         end
-
+        
         % Get numLevels from children when partition ends.
-        obj.numLevels = max(obj.children{1}.numLevels,obj.children{2}.numLevels);    
+        obj.numLevels = max(obj.children{1}.numLevels,obj.children{2}.numLevels);
         
         if obj.level == 0
-            disp('  ');
-            disp(' End build tree ');
-            disp('  ');
+            disp("  ");
+            disp(" End build tree ");
+            disp("  ");
         end
         
         end
@@ -216,7 +216,7 @@ classdef MFGraph < handle
         for iter = [1,2]
             obj_child = obj.children{iter};
             obj_child.nbNode{end+1} = obj.children{3-iter};
-            % We only need to find nbNode from the children node of 
+            % We only need to find nbNode from the children node of
             % parent's nbNode.
             if ~isempty(obj.nbNode)
                 for i = 1:length(obj.nbNode)
@@ -237,57 +237,9 @@ classdef MFGraph < handle
         for iter = [1,2]
             obj.children{iter} = SetNbNode(obj.children{iter});
         end
-
-        end
-        
-        function map = GetMap(obj,map)
-        % GetMap Get the map of the partition.
-        
-        assert(~isempty(obj.Axy.xy), "Need coordinates!")
-        
-        if nargin == 1
-            map = [];
-        end
-        
-        if obj.level == 0
-            n = size(obj.Axy.xy,1);
-            map = -1*ones(1,n);
-        end
-        
-        if obj.endFlag == 1
-            map(obj.vtx) = obj.seqNum;
-            return;
-        else
-            map = GetMap(obj.children{1},map);
-            map = GetMap(obj.children{2},map);
-        end
         
         end
-        
-        function DemoPart(obj)
-        % DemoPart Demo of our partition.
-        
-        assert(~isempty(obj.Axy.xy), "Need coordinates!")
-        disp('  ');
-        disp(' Start demo our partition');
-        disp('  ');
-        
-        figure(1);
-        clf reset;
-        colordef(1,'black');
-        gplotg(obj.Axy.A,obj.Axy.xy);
-        
-        disp(' Hit space to continue ...');
-        disp('  ');
-        pause;
-        map = GetMap(obj);
-        gplotmap(obj.Axy.A,obj.Axy.xy,map);
-        disp(' Hit space to end ...');
-        disp('  ');
-        pause;
-        
-        end
-        
+                
         function obj = FillTree(obj)
         % FillTree Fill tree structure with A.
         
@@ -301,7 +253,7 @@ classdef MFGraph < handle
         if obj.endFlag == 0
             % We only fill the leaf nodes.
             for iter = [1,2]
-                 obj.children{iter} = FillTree(obj.children{iter});
+                obj.children{iter} = FillTree(obj.children{iter});
             end
         else
             % First, we set int = vtx - sep (only holds on leaf nodes).
@@ -316,26 +268,38 @@ classdef MFGraph < handle
         
         end
         
-        function obj = Factorization(obj)
+        function obj = Factorization(obj,demoMF)
         % Factorization MF factorization.
         
-        disp('  ');
-        disp(' Start factorization ');
-        disp('  ');
+        if nargin > 1
+            obj.demoMF = demoMF;
+        end
+        
+        disp("  ");
+        disp(" Start factorization ");
+        disp("  ");
         
         for tmplevel = obj.numLevels:-1:1
             % Sparse elimination.
             obj = RecursiveSparseElim(obj,tmplevel);
+            % Demo the process.
+            if obj.demoMF == 1
+                DemoMF(obj,tmplevel);
+            end
             % Merge.
             obj = RecursiveMerge(obj,tmplevel-1);
         end
         
         % Root factorization.
         obj = RootFactorization(obj);
-
-        disp('  ');
-        disp(' End factorization ');
-        disp('  ');
+        % Demo the process.
+        if obj.demoMF == 1
+            DemoMF(obj,0);
+        end
+        
+        disp("  ");
+        disp(" End factorization ");
+        disp("  ");
         
         end
         
@@ -400,7 +364,7 @@ classdef MFGraph < handle
         obj.AII = zeros(length(obj.int));
         % An int of the parent only belongs to the sep of one of its
         % children. If two ints belong to the same child, we assign AII
-        % from the child's ASS. Otherwise, we assign AII from one child's 
+        % from the child's ASS. Otherwise, we assign AII from one child's
         % ANS or 0.
         for j = 1:length(obj.int)
             intj = obj.int(j);
@@ -429,7 +393,7 @@ classdef MFGraph < handle
         obj.ASI = zeros(length(obj.sep),length(obj.int));
         % A sep of the parent only belongs to the sep of one of its
         % children. If an int and a sep belongs to the same child, we
-        % assign ASI from the child's ASS. Otherwise, we assign ASI from 
+        % assign ASI from the child's ASS. Otherwise, we assign ASI from
         % the int child's ANS or 0.
         for j = 1:length(obj.int)
             intj = obj.int(j);
@@ -505,7 +469,7 @@ classdef MFGraph < handle
         end
         
         end
-                
+        
         function obj = RootFactorization(obj)
         % RootFactorization Factorization on the root.
         
@@ -518,14 +482,14 @@ classdef MFGraph < handle
         function obj = MFSolve(obj,b)
         % MFSolve Solve Ax = b through MF.
         
-        disp('  ');
-        disp(' Start solve ');
-        disp('  ');
+        disp("  ");
+        disp(" Start solve ");
+        disp("  ");
         
         obj.inputVec = b;
         
         obj = BuildVecTree(obj,b);
-       
+        
         for tmplevel = obj.numLevels:-1:1
             obj = RecursiveApplyUp(obj,tmplevel);
             obj = RecursiveApplyMerge(obj,tmplevel-1);
@@ -533,17 +497,17 @@ classdef MFGraph < handle
         
         obj = RootApply(obj);
         
-        for tmplevel = 1:1:obj.numLevels        
+        for tmplevel = 1:1:obj.numLevels
             obj = RecursiveApplySplit(obj,tmplevel-1);
             obj = RecursiveApplyDown(obj,tmplevel);
         end
         
         obj = GetSolution(obj);
         
-        disp('  ');
-        disp(' End solve ');
-        disp(' The solution is stored in obj.solution.');
-        disp('  ');
+        disp("  ");
+        disp(" End solve ");
+        disp(" The solution is stored in obj.solution.");
+        disp("  ");
         
         end
         
@@ -551,9 +515,9 @@ classdef MFGraph < handle
         % BuildVecTree Fill b in our MF tree.
         
         if obj.level == 0
-            disp('  ');
-            disp(' Start build vector tree ');
-            disp('  ');
+            disp("  ");
+            disp(" Start build vector tree ");
+            disp("  ");
         end
         
         if obj.endFlag == 0
@@ -566,9 +530,9 @@ classdef MFGraph < handle
         end
         
         if obj.level == 0
-            disp('  ');
-            disp(' End build vector tree ');
-            disp('  ');
+            disp("  ");
+            disp(" End build vector tree ");
+            disp("  ");
         end
         
         end
@@ -611,10 +575,10 @@ classdef MFGraph < handle
         % ApplyMerge Send vectors' information from children to parent.
         
         % We stand on the parent level.
-            
-        % We have specified the parent's int. So we only to assign the 
+        
+        % We have specified the parent's int. So we only to assign the
         % corresponding vectors.
-
+        
         obj.xI = zeros(length(obj.int),1);
         % An int of the parent only belongs to the sep of one of its
         % children. We get xI from the children's xS.
@@ -628,7 +592,7 @@ classdef MFGraph < handle
             index_intj = find(obj.children{where_intj}.sep == intj);
             obj.xI(j) = obj.children{where_intj}.xS(index_intj);
         end
-
+        
         obj.xS = zeros(length(obj.sep),1);
         % A sep of the parent only belongs to the sep of one of its
         % children. We get xS from the children's xS.
@@ -669,9 +633,9 @@ classdef MFGraph < handle
         % ApplySplit Send vectors' information from parent to children.
         
         % We stand on the parent level.
-
+        
         % We only need to assign the corresponding vectors of the children.
-
+        
         % xI
         for j = 1:length(obj.int)
             intj = obj.int(j);
@@ -683,7 +647,7 @@ classdef MFGraph < handle
             index_intj = find(obj.children{where_intj}.sep == intj);
             obj.children{where_intj}.xS(index_intj) = obj.xI(j);
         end
-
+        
         % xS
         for j = 1:length(obj.sep)
             sepj = obj.sep(j);
@@ -698,7 +662,7 @@ classdef MFGraph < handle
         
         end
         
-        function obj = RecursiveApplyDown(obj, whatlevel)
+        function obj = RecursiveApplyDown(obj,whatlevel)
         % RecursiveApplyDown Phase 2 for applying MF recursively.
         
         if obj.level == whatlevel
@@ -709,7 +673,7 @@ classdef MFGraph < handle
             end
         end
         
-        end 
+        end
         
         function obj = ApplyDown(obj)
         % ApplyDown Phase 2 for applying MF.
@@ -732,6 +696,138 @@ classdef MFGraph < handle
             end
         else
             obj.root.solution(obj.int) = obj.xI;
+        end
+        
+        end
+        
+        function DemoPart(obj)
+        % DemoPart Demo the partition process.
+        
+        assert(~isempty(obj.inputAxy.xy),"Need coordinates!")
+        
+        disp("  ");
+        disp(" Start demo the partition ");
+        disp("  ");
+        
+        figure(1);
+        clf reset;
+        colordef(1,'black');
+        gplotg(obj.inputAxy.A,obj.inputAxy.xy);
+        
+        disp(" Hit space to continue ... ");
+        disp("  ");
+            
+        for tmplevel = 0:obj.numLevels
+            disp(" Current level: " + tmplevel);
+            disp("  ");
+
+            map = GetPartMap(obj,tmplevel);
+            gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
+            if tmplevel ~= obj.numLevels
+                disp(" Hit space to continue ... ");
+            else
+                disp(" Hit space to end ... ");
+            end
+            disp("  ");
+            pause;
+        end
+        
+        end
+        
+        function map = GetPartMap(obj,whatlevel,map)
+        % GetPartMap Get the map of the partition.
+        
+        assert(~isempty(obj.Axy.xy), "Need coordinates!")
+        
+        if nargin == 2
+            map = [];
+        end
+        
+        if obj.level == 0
+            n = size(obj.Axy.xy,1);
+            map = ones(1,n);
+        end
+        
+        if obj.level == whatlevel
+            map(obj.vtx) = obj.seqNum;
+            return;
+        else
+            for iter = [1,2]
+                map = GetPartMap(obj.children{iter},whatlevel,map);
+            end
+        end
+        
+        end
+        
+        function DemoFinalPart(obj)
+        % DemoFinalPart Demo of the final partition.
+        
+        assert(~isempty(obj.inputAxy.xy),"Need coordinates!")
+        
+        disp("  ");
+        disp(" Start demo the final partition ");
+        disp("  ");
+        
+        figure(1);
+        clf reset;
+        colordef(1,'black');
+        gplotg(obj.inputAxy.A,obj.inputAxy.xy);
+        
+        disp(" Hit space to continue ... ");
+        disp("  ");
+        pause;
+        map = GetPartMap(obj,obj.numLevels);
+        gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
+        disp(" Hit space to end ... ");
+        disp("  ");
+        pause;
+        
+        end
+
+        function DemoMF(obj,whatlevel)
+        % DemoMF Demo the MF process.
+        
+        assert(~isempty(obj.inputAxy.xy), "Need coordinates!")
+        
+        disp("  ");
+        disp(" Current level: " + whatlevel);
+        disp("  ");
+        
+        map = GetMFMap(obj,whatlevel);
+        inactive = find(obj.active == 0);
+        start = max(map) + 1;
+        n = length(inactive);
+        map(inactive) = start:start+n-1;
+        gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
+        if whatlevel ~= obj.numLevels
+            disp(" Hit space to continue ...");
+        else
+            disp(" Hit space to end ...");
+        end
+        disp("  ");
+        pause;
+        
+        end
+        
+        function map = GetMFMap(obj,whatlevel,map)
+        % GetMFMap Recursively get MF map.
+        
+        if nargin == 2
+            map = [];
+        end
+        
+        if obj.level == 0
+            n = size(obj.inputAxy.xy,1);
+            map = ones(1,n);
+        end
+        
+        if obj.level == whatlevel
+            map(obj.vtx) = obj.seqNum;
+            return;
+        else
+            for iter = [1,2]
+                map = GetMFMap(obj.children{iter},whatlevel,map);
+            end
         end
         
         end
