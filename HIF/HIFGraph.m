@@ -5,6 +5,8 @@ classdef HIFGraph < handle
         
         % Root properties.
         
+        % The following information will be stored only in the root node.
+        
         inputAxy; % Input Axy, only stored in the root.
         active; % Whether a vtx is eliminated. 
         inputVec; % Input vec.
@@ -17,7 +19,7 @@ classdef HIFGraph < handle
         sep; % Separators.
         nb; % Neighbor vertices.
         int; % Interior vertices. 
-        nbA; % Adjacency matrix of sep (row) and nb (col).
+        nbA; % Adjacency matrix of seps (row) and nbs (col).
         sk; % Skeleton seps.
         re; % Redundant seps.
         
@@ -25,15 +27,15 @@ classdef HIFGraph < handle
         
         numLevels; % Total number of levels.
         level; % Current level, start from 0.
-        seqNum; % Order in its level.
+        seqNum; % A node's order in its level.
         endFlag = 0; % Whether the partition ends.
         
         % Tree properties.
         
-        parent;
-        children = cell(1,2);
-        nbNodes = {}; % Cell of neighbor nodes. 
-        root; % We will store the initial information only in the root.
+        parent; % Parent node.
+        children = cell(1,2); % Children node.
+        nbNodes = {}; % Neighbor node. In fact, we don't need this in HIF.
+        root; % Root node.
         
         % Matrices properties.
         

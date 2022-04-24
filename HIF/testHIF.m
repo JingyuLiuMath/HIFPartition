@@ -37,7 +37,8 @@ HIF = Factorization(HIF);
 x = ones(size(A,1),1);
 b = A*x;
 HIF = HIFSolve(HIF,b);
-disp(norm(HIF.solution - x))
+disp('Relative error:')
+disp(norm(MF.solution - x)/norm(x))
 
 %%
 [A,xy] = grid5(16);
@@ -55,4 +56,5 @@ HIF = Factorization(HIF);
 x = rand(size(A,1),1);
 b = A*x;
 HIF = HIFSolve(HIF,b);
-norm(HIF.solution - x)
+disp('Relative error:')
+disp(norm(MF.solution - x)/norm(x))
