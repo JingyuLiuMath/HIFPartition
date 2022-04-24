@@ -41,7 +41,7 @@ disp('Relative error:')
 disp(norm(MF.solution - x)/norm(x))
 
 %%
-[A,xy] = grid5(11);
+[A,xy] = grid5(16);
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;
