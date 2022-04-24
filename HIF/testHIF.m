@@ -28,16 +28,17 @@ xy = [1,4;
 Axy.A = A;
 Axy.xy = xy;
 
-testHIF = HIFGraph(Axy);
-testHIF = BuildTree(testHIF);
-testHIF = SetNbNodes(testHIF);
+HIF = HIFGraph(Axy);
+HIF = BuildTree(HIF);
+HIF = SetNbNodes(HIF);
 % DemoPart(testHIF)
-testHIF = FillTree(testHIF);
-testHIF = Factorization(testHIF);
+HIF = FillTree(HIF);
+HIF = Factorization(HIF);
 x = ones(size(A,1),1);
 b = A*x;
-testHIF = HIFSolve(testHIF,b);
-norm(testHIF.solution - x)
+HIF = HIFSolve(HIF,b);
+disp('Relative error:')
+disp(norm(MF.solution - x)/norm(x))
 
 %%
 [A,xy] = grid5(16);
@@ -46,13 +47,14 @@ Axy.A = A;
 Axy.xy = xy;
 % Axy.xy = []
 
-testHIF = HIFGraph(Axy);
-testHIF = BuildTree(testHIF);
-testHIF = SetNbNodes(testHIF);
-DemoPart(testHIF)
-testHIF = FillTree(testHIF);
-testHIF = Factorization(testHIF);
+HIF = HIFGraph(Axy);
+HIF = BuildTree(HIF);
+HIF = SetNbNodes(HIF);
+DemoPart(HIF)
+HIF = FillTree(HIF);
+HIF = Factorization(HIF);
 x = rand(size(A,1),1);
 b = A*x;
-testHIF = HIFSolve(testHIF,b);
-norm(testHIF.solution - x)
+HIF = HIFSolve(HIF,b);
+disp('Relative error:')
+disp(norm(MF.solution - x)/norm(x))
