@@ -19,7 +19,7 @@ classdef MFGraph < handle
         sep; % Separator vertices.
         nb; % Neighbor vertices.
         int; % Interior vertices. 
-        nbA; % Adjacency matrix of seps (row) and nbs (col).
+        nbA; % Adjacency matrix of sep (row) and nb (col).
         
         % Partition properties.
         
@@ -206,7 +206,7 @@ classdef MFGraph < handle
         end
         
         function obj = SetNbNode(obj)
-        % SetNbNodes Set nbNode.
+        % SetNbNode Set nbNode.
         
         % We stand on the parent level to assign its children's nbNode.
         if obj.endFlag == 1
@@ -292,6 +292,7 @@ classdef MFGraph < handle
         % FillTree Fill tree structure with A.
         
         % We clear the following data: Axy, nbA and sort vtx, sep, nb.
+        % In fact, they can be clear after being passed to children.
         obj.Axy = []; obj.nbA = [];
         obj.vtx = sort(obj.vtx);
         obj.sep = sort(obj.sep);
@@ -338,7 +339,7 @@ classdef MFGraph < handle
         
         end
         
-        function obj = RecursiveSparseElim(obj, whatlevel)
+        function obj = RecursiveSparseElim(obj,whatlevel)
         % RecursiveSparseElim Recursively sparse elimination.
         
         if obj.level == whatlevel
@@ -358,12 +359,12 @@ classdef MFGraph < handle
         L = chol(obj.AII,'lower'); % AII = L * L^T.
         obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}.
         obj.AIIinvAIS = L\(obj.ASI');
-        obj.AIIinvAIS = L'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * AIS.
-        obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS;
+        obj.AIIinvAIS = L'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
+        obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS; % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
         
         end
         
-        function obj = RecursiveMerge(obj, whatlevel)
+        function obj = RecursiveMerge(obj,whatlevel)
         % RecursiveMerge Recusively send information from children to parent.
         
         if obj.level == whatlevel
@@ -509,7 +510,7 @@ classdef MFGraph < handle
         % RootFactorization Factorization on the root.
         
         obj.root.active(obj.int) = 0;
-        L = chol(obj.AII,'lower'); % AII = L L^T.
+        L = chol(obj.AII,'lower'); % AII = L * L^T.
         obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}
         
         end
@@ -527,13 +528,13 @@ classdef MFGraph < handle
        
         for tmplevel = obj.numLevels:-1:1
             obj = RecursiveApplyUp(obj, tmplevel);
-            obj = ApplyMerge(obj, tmplevel-1);
+            obj = RecursiveApplyMerge(obj, tmplevel-1);
         end
         
         obj = RootApply(obj);
         
         for tmplevel = 1:1:obj.numLevels        
-            obj = ApplySplit(obj, tmplevel-1);
+            obj = RecursiveApplySplit(obj, tmplevel-1);
             obj = RecursiveApplyDown(obj, tmplevel);
         end
         
@@ -572,7 +573,7 @@ classdef MFGraph < handle
         
         end
         
-        function obj = RecursiveApplyUp(obj, whatlevel)
+        function obj = RecursiveApplyUp(obj,whatlevel)
         % RecursiveApplyUp Phase 1 for applying MF recusively.
         
         if obj.level == whatlevel
@@ -593,46 +594,53 @@ classdef MFGraph < handle
         
         end
         
-        function obj = ApplyMerge(obj, whatlevel)
-        % ApplyMerge Send vectors' information from children to parent.
+        function obj = RecursiveApplyMerge(obj,whatlevel)
+        % RecursiveApplyMerge Recusively send vectors' information from children to parent.
         
         if obj.level == whatlevel
-            % We stand on the parent level.
-            
-            % We have specified the parent's int. So we only to assign the 
-            % corresponding vectors.
-            
-            obj.xI = zeros(length(obj.int),1);
-            % An int of the parent only belongs to the sep of one of its
-            % children. We get xI from the children's xS.
-            for j =1:length(obj.int)
-                intj = obj.int(j);
-                if find(obj.children{1}.vtx == intj)
-                    where_intj = 1;
-                else
-                    where_intj = 2;
-                end
-                index_intj = find(obj.children{where_intj}.sep == intj);
-                obj.xI(j) = obj.children{where_intj}.xS(index_intj);
-            end
-            
-            obj.xS = zeros(length(obj.sep),1);
-            % A sep of the parent only belongs to the sep of one of its
-            % children. We get xS from the children's xS.
-            for j = 1:length(obj.sep)
-                sepj = obj.sep(j);
-                if find(obj.children{1}.vtx == sepj)
-                    where_sepj = 1;
-                else
-                    where_sepj = 2;
-                end
-                index_sepj = find(obj.children{where_sepj}.sep == sepj);
-                obj.xS(j) = obj.children{where_sepj}.xS(index_sepj);
-            end
+            obj = ApplyMerge(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = ApplyMerge(obj.children{iter},whatlevel);
+                obj.children{iter} = RecursiveApplyMerge(obj.children{iter},whatlevel);
             end
+        end
+        
+        end
+        
+        function obj = ApplyMerge(obj)
+        % ApplyMerge Send vectors' information from children to parent.
+        
+        % We stand on the parent level.
+            
+        % We have specified the parent's int. So we only to assign the 
+        % corresponding vectors.
+
+        obj.xI = zeros(length(obj.int),1);
+        % An int of the parent only belongs to the sep of one of its
+        % children. We get xI from the children's xS.
+        for j =1:length(obj.int)
+            intj = obj.int(j);
+            if find(obj.children{1}.vtx == intj)
+                where_intj = 1;
+            else
+                where_intj = 2;
+            end
+            index_intj = find(obj.children{where_intj}.sep == intj);
+            obj.xI(j) = obj.children{where_intj}.xS(index_intj);
+        end
+
+        obj.xS = zeros(length(obj.sep),1);
+        % A sep of the parent only belongs to the sep of one of its
+        % children. We get xS from the children's xS.
+        for j = 1:length(obj.sep)
+            sepj = obj.sep(j);
+            if find(obj.children{1}.vtx == sepj)
+                where_sepj = 1;
+            else
+                where_sepj = 2;
+            end
+            index_sepj = find(obj.children{where_sepj}.sep == sepj);
+            obj.xS(j) = obj.children{where_sepj}.xS(index_sepj);
         end
         
         end
@@ -644,44 +652,50 @@ classdef MFGraph < handle
         
         end
         
-        function obj = ApplySplit(obj, whatlevel)
-        % ApplySplit Send vectors' information from parent to children.
-        
+        function obj = RecursiveApplySplit(obj,whatlevel)
+        % RecursiveApplySplit Recusively send vectors' information from parent to children.
         
         if obj.level == whatlevel
-            % We stand on the parent level.
-
-            % We only need to assign the corresponding vectors of the children.
-            
-            % xI
-            for j = 1:length(obj.int)
-                intj = obj.int(j);
-                if find(obj.children{1}.vtx == intj)
-                    where_intj = 1;
-                else
-                    where_intj = 2;
-                end
-                index_intj = find(obj.children{where_intj}.sep == intj);
-                obj.children{where_intj}.xS(index_intj) = obj.xI(j);
-            end
-            
-            % xS
-            for j = 1:length(obj.sep)
-                sepj = obj.sep(j);
-                if find(obj.children{1}.vtx == sepj)
-                    where_sepj = 1;
-                else
-                    where_sepj = 2;
-                end
-                index_sepj = find(obj.children{where_sepj}.sep == sepj);
-                obj.children{where_sepj}.xS(index_sepj) = obj.xS(j);
-            end
+            obj = ApplySplit(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = ApplySplit(obj.children{iter},whatlevel);
+                obj.children{iter} = RecursiveApplySplit(obj.children{iter},whatlevel);
             end
         end
-          
+        
+        end
+        
+        function obj = ApplySplit(obj)
+        % ApplySplit Send vectors' information from parent to children.
+        
+        % We stand on the parent level.
+
+        % We only need to assign the corresponding vectors of the children.
+
+        % xI
+        for j = 1:length(obj.int)
+            intj = obj.int(j);
+            if find(obj.children{1}.vtx == intj)
+                where_intj = 1;
+            else
+                where_intj = 2;
+            end
+            index_intj = find(obj.children{where_intj}.sep == intj);
+            obj.children{where_intj}.xS(index_intj) = obj.xI(j);
+        end
+
+        % xS
+        for j = 1:length(obj.sep)
+            sepj = obj.sep(j);
+            if find(obj.children{1}.vtx == sepj)
+                where_sepj = 1;
+            else
+                where_sepj = 2;
+            end
+            index_sepj = find(obj.children{where_sepj}.sep == sepj);
+            obj.children{where_sepj}.xS(index_sepj) = obj.xS(j);
+        end
+        
         end
         
         function obj = RecursiveApplyDown(obj, whatlevel)
