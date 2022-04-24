@@ -737,14 +737,12 @@ classdef MFGraph < handle
         function map = GetPartMap(obj,whatlevel,map)
         % GetPartMap Get the map of the partition.
         
-        assert(~isempty(obj.Axy.xy), "Need coordinates!")
-        
         if nargin == 2
             map = [];
         end
         
         if obj.level == 0
-            n = size(obj.Axy.xy,1);
+            n = size(obj.inputAxy.xy,1);
             map = ones(1,n);
         end
         
@@ -789,9 +787,14 @@ classdef MFGraph < handle
         
         assert(~isempty(obj.inputAxy.xy), "Need coordinates!")
         
+        if whatlevel == obj.numLevels
+            DemoFinalPart(obj);
+        end
+        
         disp("  ");
         disp(" Current level: " + whatlevel);
         disp("  ");
+        
         
         map = GetMFMap(obj,whatlevel);
         inactive = find(obj.active == 0);

@@ -41,7 +41,7 @@ disp('Relative error:')
 disp(norm(MF.solution - x)/norm(x))
 
 %%
-[A,xy] = grid5(20);
+[A,xy] = grid5(16);
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;
@@ -50,7 +50,7 @@ Axy.xy = xy;
 MF = MFGraph(Axy);
 MF = BuildTree(MF);
 MF = SetNbNode(MF);
-DemoPart(MF)
+% DemoPart(MF)
 % DemoFinalPart(MF);
 MF = FillTree(MF);
 MF = Factorization(MF,1);
