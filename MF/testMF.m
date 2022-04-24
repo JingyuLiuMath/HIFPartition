@@ -30,6 +30,7 @@ Axy.xy = xy;
 
 MF = MFGraph(Axy);
 MF = BuildTree(MF);
+DemoFinalPart(MF);
 MF = SetNbNode(MF);
 MF = FillTree(MF);
 MF = Factorization(MF);
