@@ -325,9 +325,9 @@ classdef MFGraph < handle
         
         for tmplevel = obj.numLevels:-1:1
             % Sparse elimination.
-            obj = RecursiveSparseElim(obj, tmplevel);
+            obj = RecursiveSparseElim(obj,tmplevel);
             % Merge.
-            obj = RecursiveMerge(obj, tmplevel-1);
+            obj = RecursiveMerge(obj,tmplevel-1);
         end
         
         % Root factorization.
@@ -527,15 +527,15 @@ classdef MFGraph < handle
         obj = BuildVecTree(obj,b);
        
         for tmplevel = obj.numLevels:-1:1
-            obj = RecursiveApplyUp(obj, tmplevel);
-            obj = RecursiveApplyMerge(obj, tmplevel-1);
+            obj = RecursiveApplyUp(obj,tmplevel);
+            obj = RecursiveApplyMerge(obj,tmplevel-1);
         end
         
         obj = RootApply(obj);
         
         for tmplevel = 1:1:obj.numLevels        
-            obj = RecursiveApplySplit(obj, tmplevel-1);
-            obj = RecursiveApplyDown(obj, tmplevel);
+            obj = RecursiveApplySplit(obj,tmplevel-1);
+            obj = RecursiveApplyDown(obj,tmplevel);
         end
         
         obj = GetSolution(obj);
