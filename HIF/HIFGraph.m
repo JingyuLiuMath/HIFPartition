@@ -19,9 +19,9 @@ classdef HIFGraph < handle
         sep; % Separators.
         nb; % Neighbor vertices.
         int; % Interior vertices. 
-        nbA; % Adjacency matrix of seps (row) and nbs (col).
-        sk; % Skeleton seps.
-        re; % Redundant seps.
+        nbA; % Adjacency matrix of sep (row) and nb (col).
+        sk; % Skeleton sep.
+        re; % Redundant sep.
         
         % Partition properties.
         
@@ -33,8 +33,8 @@ classdef HIFGraph < handle
         % Tree properties.
         
         parent; % Parent node.
-        children = cell(1,2); % Children node.
-        nbNodes = {}; % Neighbor node. In fact, we don't need this in HIF.
+        children = cell(1,2); % Children nodes.
+        nbNode = {}; % Neighbor nodes. In fact, we don't need this in HIF.
         root; % Root node.
         
         % Matrices properties.
@@ -42,22 +42,22 @@ classdef HIFGraph < handle
         % For the following matrices, the fist index is row, and the second
         % index is col.
         
-        AII;
-        ASI;
-        ASS; 
-        ANS;
-        AIIinv; % AII^{-1} = L L^{T}, AIIinv = L^{-T}.
-        AIIinvAIS; % AIIinvAIS = AII^{-1} AIS.
-        ps; % Permutation vector.
-        pr; % Permutation vector.
-        Tsr; %  Interpolation matrix.
-        Arrinv;
-        ArrinvArs;
+        AII; % Interaction between int and int. 
+        ASI; % Interaction between sep and int. 
+        ASS; % Interaction between sep and sep. 
+        ANS; % Interaction between nb and sep. 
+        AIIinv; % AIIinv = L^{-T} where AII = L * L^{T}. 
+        AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
+        ps; % Permutation vector of sk.
+        pr; % Permutation vector of re.
+        Tsr; % Interpolation matrix.
+        Arrinv; % Arrinv = L^{-T} where Arr = L * L^{T}.
+        ArrinvArs; % ArrinvArs = Arr^{-1} * Asr^{T}.
         
         % Vectors properties.
         
-        xI;
-        xS;
+        xI; % The int part of a vector x.
+        xS; % The sep part of a vector x.
         
     end
     
@@ -212,8 +212,8 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = SetNbNodes(obj)
-        % SetNbNodes Set nbNodes.
+        function obj = SetNbNode(obj)
+        % SetNbNode Set nbNode.
         
         % We stand on the parent level to assign its children's nbNode.
         if obj.endFlag == 1
@@ -222,27 +222,27 @@ classdef HIFGraph < handle
         
         for iter = [1,2]
             obj_child = obj.children{iter};
-            obj_child.nbNodes{end+1} = obj.children{3-iter};
+            obj_child.nbNode{end+1} = obj.children{3-iter};
             % We only need to find nbNode from the children node of 
             % parent's nbNode.
-            if ~isempty(obj.nbNodes)
-                for i = 1:length(obj.nbNodes)
-                    nbNodei = obj.nbNodes{i};
+            if ~isempty(obj.nbNode)
+                for i = 1:length(obj.nbNode)
+                    nbNodei = obj.nbNode{i};
                     % What we need is to check whether the vtx of nbNodei's
                     % chilren is in the nb of obj_child.
                     for it = [1,2]
                         nbNodei_child = nbNodei.children{it};
                         if ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
-                            obj_child.nbNodes{end+1} = nbNodei_child;
+                            obj_child.nbNode{end+1} = nbNodei_child;
                         end
                     end
                 end
             end
         end
         
-        % Recursively setNbNodes.
+        % Recursively setNbNode.
         for iter = [1,2]
-            obj.children{iter} = SetNbNodes(obj.children{iter});
+            obj.children{iter} = SetNbNode(obj.children{iter});
         end
 
         end
@@ -299,6 +299,7 @@ classdef HIFGraph < handle
         % FillTree Fill tree structure with A.
         
         % We clear the following data: Axy, nbA and sort vtx, sep, nb.
+        % In fact, they can be clear after being passed to children.
         obj.Axy = []; obj.nbA = [];
         obj.vtx = sort(obj.vtx);
         obj.sep = sort(obj.sep);
@@ -331,11 +332,11 @@ classdef HIFGraph < handle
         
         for tmplevel = obj.numLevels:-1:1
             % Sparse elimination.
-            obj = RecursiveSparseElim(obj, tmplevel);
+            obj = RecursiveSparseElim(obj,tmplevel);
             % Skeletonization.
             obj = RecursiveSkel(obj,tmplevel);
             % Merge.
-            obj = RecursiveMerge(obj, tmplevel-1);
+            obj = RecursiveMerge(obj,tmplevel-1);
         end
         
         % Root factorization.
@@ -347,7 +348,7 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = RecursiveSparseElim(obj, whatlevel)
+        function obj = RecursiveSparseElim(obj,whatlevel)
         % RecursiveSparseElim Recursively sparse elimination.
         
         if obj.level == whatlevel
@@ -364,11 +365,11 @@ classdef HIFGraph < handle
         % SparseElim Sparse elimination.
         
         obj.root.active(obj.int) = 0;
-        L = chol(obj.AII,'lower'); % AII = L*L^T.
+        L = chol(obj.AII,'lower'); % AII = L * L^T.
         obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}.
         obj.AIIinvAIS = L\(obj.ASI');
-        obj.AIIinvAIS = L'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1}*AIS.
-        obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS;
+        obj.AIIinvAIS = L'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
+        obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS; % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
         
         end
         
@@ -395,29 +396,28 @@ classdef HIFGraph < handle
             disp("We actually skel")
         end
         
-        % ANS(:,p2) approx ANS(:,p1) * T where k is the number of sk.
+        % ANS(:,p2) approx ANS(:,p1) * T.
         obj.sk = obj.sep(p1);
         obj.re = obj.sep(p2);
         obj.Tsr = T;
         obj.ps = p1;
         obj.pr = p2;
         
-        
-        % tmp1 = Tsr^{T} * Asr, tmp2 = Ass * Tsr.
+        % tmp1 = T^{T} * Asr, tmp2 = Ass * T.
         tmp1 = T'* obj.ASS(p1,p2);
         tmp2 = obj.ASS(p1,p1)*T;
-        obj.ASS(p2,p2) = obj.ASS(p2,p2) - tmp1 - tmp1'+ T'*tmp2;
-        obj.ASS(p1,p2) = obj.ASS(p1,p2) - tmp2;
+        obj.ASS(p2,p2) = obj.ASS(p2,p2) - tmp1 - tmp1'+ T'*tmp2; % Arr = Arr - T^{T} * Asr - Asr^{T} * T + T^{T} * Ass * T.
+        obj.ASS(p1,p2) = obj.ASS(p1,p2) - tmp2; % Asr = Asr - Ass * T
         obj.ASS(p2,p1) = obj.ASS(p1,p2)';
         obj.ANS(:,p2) = 0;
         
         % Sparse elimination.
         obj.root.active(obj.re) = 0;
-        L = chol(obj.ASS(p2,p2),'lower'); % Arr = L*L^T.
+        L = chol(obj.ASS(p2,p2),'lower'); % Arr = L * L^T.
         obj.Arrinv =  L'\eye(size(L,1)); % Arrinv = L^{-T}.
         obj.ArrinvArs = L\(obj.ASS(p1,p2)');
         obj.ArrinvArs = L'\obj.ArrinvArs;
-        obj.ASS(p1,p1) = obj.ASS(p1,p1) - obj.ASS(p1,p2)*obj.ArrinvArs;
+        obj.ASS(p1,p1) = obj.ASS(p1,p1) - obj.ASS(p1,p2)*obj.ArrinvArs; % Ass = Ass - Asr * Arr^{-1} * Asr^{T}.
         
         end
         
@@ -429,7 +429,7 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = RecursiveMerge(obj, whatlevel)
+        function obj = RecursiveMerge(obj,whatlevel)
         % RecursiveMerge Recusively send information from children to parent.
         
         if obj.level == whatlevel
@@ -586,7 +586,7 @@ classdef HIFGraph < handle
         % RootFactorization Factorization on the root.
         
         obj.root.active(obj.int) = 0;
-        L = chol(obj.AII,'lower'); % AII = L L^T.
+        L = chol(obj.AII,'lower'); % AII = L *  L^T.
         obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}
         
         end
@@ -603,15 +603,15 @@ classdef HIFGraph < handle
         obj = BuildVecTree(obj,b);
        
         for tmplevel = obj.numLevels:-1:1
-            obj = RecursiveApplyUp(obj, tmplevel);
-            obj = ApplyMerge(obj, tmplevel-1);
+            obj = RecursiveApplyUp(obj,tmplevel);
+            obj = RecursiveApplyMerge(obj,tmplevel-1);
         end
         
         obj = RootApply(obj);
         
         for tmplevel = 1:1:obj.numLevels        
-            obj = ApplySplit(obj, tmplevel-1);
-            obj = RecursiveApplyDown(obj, tmplevel);
+            obj = RecursiveApplySplit(obj,tmplevel-1);
+            obj = RecursiveApplyDown(obj,tmplevel);
         end
         
         obj = GetSolution(obj);
@@ -649,7 +649,7 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = RecursiveApplyUp(obj, whatlevel)
+        function obj = RecursiveApplyUp(obj,whatlevel)
         % RecursiveApplyUp Phase 1 for applying HIF recusively.
         
         if obj.level == whatlevel
@@ -677,46 +677,53 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = ApplyMerge(obj, whatlevel)
-        % ApplyMerge Send vectors information from children to parent.
+        function obj = RecursiveApplyMerge(obj,whatlevel)
+        % RecursiveApplyMerge Recursively send vectors' information from children to parent.
         
         if obj.level == whatlevel
-            % We stand on the parent level.
-            
-            % We have specified the parent's int. So we only to assign the 
-            % corresponding vectors.
-            
-            obj.xI = zeros(length(obj.int),1);
-            % An int of the parent only belongs to the sep of one of its
-            % children. We get xI from the children's xS.
-            for j =1:length(obj.int)
-                intj = obj.int(j);
-                if find(obj.children{1}.vtx == intj)
-                    where_intj = 1;
-                else
-                    where_intj = 2;
-                end
-                index_intj = find(obj.children{where_intj}.sep == intj);
-                obj.xI(j) = obj.children{where_intj}.xS(index_intj);
-            end
-            
-            obj.xS = zeros(length(obj.sep),1);
-            % A sep of the parent only belongs to the sep of one of its
-            % children. We get xS from the children's xS.
-            for j = 1:length(obj.sep)
-                sepj = obj.sep(j);
-                if find(obj.children{1}.vtx == sepj)
-                    where_sepj = 1;
-                else
-                    where_sepj = 2;
-                end
-                index_sepj = find(obj.children{where_sepj}.sep == sepj);
-                obj.xS(j) = obj.children{where_sepj}.xS(index_sepj);
-            end
+            obj = ApplyMerge(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = ApplyMerge(obj.children{iter},whatlevel);
+                obj.children{iter} = RecursiveApplyMerge(obj.children{iter},whatlevel);
             end
+        end
+            
+        end
+        
+        function obj = ApplyMerge(obj)
+        % ApplyMerge Send vectors' information from children to parent.
+        
+        % We stand on the parent level.
+            
+        % We have specified the parent's int. So we only to assign the 
+        % corresponding vectors.
+
+        obj.xI = zeros(length(obj.int),1);
+        % An int of the parent only belongs to the sep of one of its
+        % children. We get xI from the children's xS.
+        for j =1:length(obj.int)
+            intj = obj.int(j);
+            if find(obj.children{1}.vtx == intj)
+                where_intj = 1;
+            else
+                where_intj = 2;
+            end
+            index_intj = find(obj.children{where_intj}.sep == intj);
+            obj.xI(j) = obj.children{where_intj}.xS(index_intj);
+        end
+
+        obj.xS = zeros(length(obj.sep),1);
+        % A sep of the parent only belongs to the sep of one of its
+        % children. We get xS from the children's xS.
+        for j = 1:length(obj.sep)
+            sepj = obj.sep(j);
+            if find(obj.children{1}.vtx == sepj)
+                where_sepj = 1;
+            else
+                where_sepj = 2;
+            end
+            index_sepj = find(obj.children{where_sepj}.sep == sepj);
+            obj.xS(j) = obj.children{where_sepj}.xS(index_sepj);
         end
         
         end
@@ -728,47 +735,53 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = ApplySplit(obj, whatlevel)
-        % ApplySplit Send vrctors information from parent to children.
-        
+        function obj = RecursiveApplySplit(obj,whatlevel)
+        % RecursiveApplySplit Recursively send vectors' information from parent to children.
         
         if obj.level == whatlevel
-            % We stand on the parent level.
-
-            % We only need to assign the correspond vectors of the children.
-            
-            % xI
-            for j = 1:length(obj.int)
-                intj = obj.int(j);
-                if find(obj.children{1}.vtx == intj)
-                    where_intj = 1;
-                else
-                    where_intj = 2;
-                end
-                index_intj = find(obj.children{where_intj}.sep == intj);
-                obj.children{where_intj}.xS(index_intj) = obj.xI(j);
-            end
-            
-            % xS
-            for j = 1:length(obj.sep)
-                sepj = obj.sep(j);
-                if find(obj.children{1}.vtx == sepj)
-                    where_sepj = 1;
-                else
-                    where_sepj = 2;
-                end
-                index_sepj = find(obj.children{where_sepj}.sep == sepj);
-                obj.children{where_sepj}.xS(index_sepj) = obj.xS(j);
-            end
+            obj = ApplySplit(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = ApplySplit(obj.children{iter},whatlevel);
+                obj.children{iter} = RecursiveApplySplit(obj.children{iter},whatlevel);
             end
+        end
+        
+        end
+        
+        function obj = ApplySplit(obj)
+        % ApplySplit Send vectors' information from parent to children.
+        
+        % We stand on the parent level.
+
+        % We only need to assign the correspond vectors of the children.
+
+        % xI
+        for j = 1:length(obj.int)
+            intj = obj.int(j);
+            if find(obj.children{1}.vtx == intj)
+                where_intj = 1;
+            else
+                where_intj = 2;
+            end
+            index_intj = find(obj.children{where_intj}.sep == intj);
+            obj.children{where_intj}.xS(index_intj) = obj.xI(j);
+        end
+
+        % xS
+        for j = 1:length(obj.sep)
+            sepj = obj.sep(j);
+            if find(obj.children{1}.vtx == sepj)
+                where_sepj = 1;
+            else
+                where_sepj = 2;
+            end
+            index_sepj = find(obj.children{where_sepj}.sep == sepj);
+            obj.children{where_sepj}.xS(index_sepj) = obj.xS(j);
         end
           
         end
         
-        function obj = RecursiveApplyDown(obj, whatlevel)
+        function obj = RecursiveApplyDown(obj,whatlevel)
         % RecursiveApplyDown Phase 2 for applying HIF recursively.
         
         if obj.level == whatlevel
