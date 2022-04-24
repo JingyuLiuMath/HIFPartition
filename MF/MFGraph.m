@@ -802,7 +802,7 @@ classdef MFGraph < handle
         n = length(inactive);
         map(inactive) = start:start+n-1;
         gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
-        if whatlevel ~= obj.numLevels
+        if whatlevel ~= 0
             disp(" Hit space to continue ...");
         else
             disp(" Hit space to end ...");
