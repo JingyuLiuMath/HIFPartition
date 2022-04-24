@@ -19,7 +19,7 @@ classdef MFGraph < handle
         sep; % Separator vertices.
         nb; % Neighbor vertices.
         int; % Interior vertices. 
-        nbA; % Adjacency matrix of sep (row) and nb (col).
+        nbA; % Adjacency matrix of seps (row) and nbs (col).
         
         % Partition properties.
         
@@ -31,8 +31,8 @@ classdef MFGraph < handle
         % Tree properties.
         
         parent; % Parent node.
-        children = cell(1,2); % Children node.
-        nbNodes = {}; % Neighbor node. In fact, we don't need this in MF.
+        children = cell(1,2); % Children nodes.
+        nbNode = {}; % Neighbor nodes. In fact, we don't need this in MF.
         root; % Root node.
         
         % Matrices properties.
@@ -49,8 +49,8 @@ classdef MFGraph < handle
         
         % Vectors properties.
         
-        xI; % Int part of a vector x.
-        xS; % Sep part of a vector x.
+        xI; % The int part of a vector x.
+        xS; % The sep part of a vector x.
         
     end
     
@@ -205,8 +205,8 @@ classdef MFGraph < handle
         
         end
         
-        function obj = SetNbNodes(obj)
-        % SetNbNodes Set nbNodes.
+        function obj = SetNbNode(obj)
+        % SetNbNodes Set nbNode.
         
         % We stand on the parent level to assign its children's nbNode.
         if obj.endFlag == 1
@@ -215,27 +215,27 @@ classdef MFGraph < handle
         
         for iter = [1,2]
             obj_child = obj.children{iter};
-            obj_child.nbNodes{end+1} = obj.children{3-iter};
+            obj_child.nbNode{end+1} = obj.children{3-iter};
             % We only need to find nbNode from the children node of 
             % parent's nbNode.
-            if ~isempty(obj.nbNodes)
-                for i = 1:length(obj.nbNodes)
-                    nbNodei = obj.nbNodes{i};
+            if ~isempty(obj.nbNode)
+                for i = 1:length(obj.nbNode)
+                    nbNodei = obj.nbNode{i};
                     % What we need is to check whether the vtx of nbNodei's
                     % chilren is in the nb of obj_child.
                     for it = [1,2]
                         nbNodei_child = nbNodei.children{it};
                         if ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
-                            obj_child.nbNodes{end+1} = nbNodei_child;
+                            obj_child.nbNode{end+1} = nbNodei_child;
                         end
                     end
                 end
             end
         end
         
-        % Recursively setNbNodes.
+        % Recursively setNbNode.
         for iter = [1,2]
-            obj.children{iter} = SetNbNodes(obj.children{iter});
+            obj.children{iter} = SetNbNode(obj.children{iter});
         end
 
         end
@@ -651,7 +651,7 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             % We stand on the parent level.
 
-            % We only need to assign the correspond vectors of the children.
+            % We only need to assign the corresponding vectors of the children.
             
             % xI
             for j = 1:length(obj.int)

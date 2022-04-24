@@ -30,7 +30,7 @@ Axy.xy = xy;
 
 MF = MFGraph(Axy);
 MF = BuildTree(MF);
-MF = SetNbNodes(MF);
+MF = SetNbNode(MF);
 % DemoPart(testHIF)
 MF = FillTree(MF);
 MF = Factorization(MF);
@@ -49,7 +49,7 @@ Axy.xy = xy;
 
 MF = MFGraph(Axy);
 MF = BuildTree(MF);
-MF = SetNbNodes(MF);
+MF = SetNbNode(MF);
 DemoPart(MF)
 MF = FillTree(MF);
 MF = Factorization(MF);
