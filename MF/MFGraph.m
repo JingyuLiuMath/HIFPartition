@@ -2,6 +2,7 @@ classdef MFGraph < handle
     % MFGraph Multifrontal algorithm on general graphs.
     
     properties
+        
         % Root properties.
         
         % The following information will be stored only in the root node.
