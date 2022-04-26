@@ -7,16 +7,17 @@ classdef HIFGraph < handle
         
         % The following information will be stored only in the root node.
         
-        inputAxy; % Input Axy, only stored in the root.
+        inputAxy; % Input Axy.
         active; % Whether a vtx is eliminated. 
         inputVec; % Input vec.
         solution; % Solution.
+        demoHIF = 0; % Whether to demo our HIF process.
 
         % Graph properties.
         
         Axy; % Adjacency matrix (and coordinates of vertices).
         vtx; % Vertices on the graph.
-        sep; % Separators.
+        sep; % Separator vertices.
         nb; % Neighbor vertices.
         int; % Interior vertices. 
         nbA; % Adjacency matrix of sep (row) and nb (col).
@@ -95,9 +96,9 @@ classdef HIFGraph < handle
         % BuildTree Build tree structure according to a graph partition algorithm.
         
         if obj.level == 0
-            disp('  ');
-            disp(' Start build tree ');
-            disp('  ');
+            disp("  ");
+            disp(" Start build tree ");
+            disp("  ");
         end
         
         numtries = 30; % Only when using geopart.
@@ -148,9 +149,9 @@ classdef HIFGraph < handle
         obj.numLevels = max(obj.children{1}.numLevels,obj.children{2}.numLevels);    
         
         if obj.level == 0
-            disp('  ');
-            disp(' End build tree ');
-            disp('  ');
+            disp("  ");
+            disp(" End build tree ");
+            disp("  ");
         end
         
         end
@@ -246,55 +247,7 @@ classdef HIFGraph < handle
         end
 
         end
-        
-        function map = GetMap(obj,map)
-        % GetMap Get the map of the partition.
-        
-        assert(~isempty(obj.Axy.xy), "Need coordinates!")
-        
-        if nargin == 1
-            map = [];
-        end
-        
-        if obj.level == 0
-            n = size(obj.Axy.xy,1);
-            map = -1*ones(1,n);
-        end
-        
-        if obj.endFlag == 1
-            map(obj.vtx) = obj.seqNum;
-            return;
-        else
-            map = GetMap(obj.children{1},map);
-            map = GetMap(obj.children{2},map);
-        end
-        
-        end
-        
-        function DemoPart(obj)
-        % DemoPart Demo of our partition.
-        
-        assert(~isempty(obj.Axy.xy), "Need coordinates!")
-        disp('  ');
-        disp(' Start demo our partition');
-        disp('  ');
-        
-        figure(1);
-        clf reset;
-        colordef(1,'black');
-        gplotg(obj.Axy.A,obj.Axy.xy);
-        
-        disp(' Hit space to continue ...');
-        disp('  ');
-        pause;
-        map = GetMap(obj);
-        gplotmap(obj.Axy.A,obj.Axy.xy,map);
-        disp(' Hit space to end ...');
-        disp('  ');
-        pause;
-        
-        end
-        
+                
         function obj = FillTree(obj)
         % FillTree Fill tree structure with A.
         
@@ -326,9 +279,9 @@ classdef HIFGraph < handle
         function obj = Factorization(obj)
         % Factorization HIF factorization.
         
-        disp('  ');
-        disp(' Start factorization ');
-        disp('  ');
+        disp("  ");
+        disp(" Start factorization ");
+        disp("  ");
         
         for tmplevel = obj.numLevels:-1:1
             % Sparse elimination.
@@ -342,9 +295,9 @@ classdef HIFGraph < handle
         % Root factorization.
         obj = RootFactorization(obj);
 
-        disp('  ');
-        disp(' End factorization ');
-        disp('  ');
+        disp("  ");
+        disp(" End factorization ");
+        disp("  ");
         
         end
         
@@ -826,6 +779,88 @@ classdef HIFGraph < handle
         
         end
         
+        function DemoPart(obj)
+        % DemoPart Demo the partition process.
+        
+        assert(~isempty(obj.inputAxy.xy),"Need coordinates!")
+        
+        disp("  ");
+        disp(" Start demo the partition ");
+        disp("  ");
+        
+        figure(1);
+        clf reset;
+        colordef(1,'black');
+        gplotg(obj.inputAxy.A,obj.inputAxy.xy);
+        
+        disp(" Hit space to continue ... ");
+        disp("  ");
+            
+        for tmplevel = 0:obj.numLevels
+            disp(" Current level: " + tmplevel);
+            disp("  ");
+
+            map = GetPartMap(obj,tmplevel);
+            gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
+            if tmplevel ~= obj.numLevels
+                disp(" Hit space to continue ... ");
+            else
+                disp(" Hit space to end ... ");
+            end
+            disp("  ");
+            pause;
+        end
+        
+        end
+        
+        function map = GetPartMap(obj,whatlevel,map)
+        % GetPartMap Get the map of the partition.
+        
+        if nargin == 2
+            map = [];
+        end
+        
+        if obj.level == 0
+            n = size(obj.inputAxy.xy,1);
+            map = ones(1,n);
+        end
+        
+        if obj.level == whatlevel
+            map(obj.vtx) = obj.seqNum;
+            return;
+        else
+            for iter = [1,2]
+                map = GetPartMap(obj.children{iter},whatlevel,map);
+            end
+        end
+        
+        end
+        
+        function DemoFinalPart(obj)
+        % DemoFinalPart Demo of the final partition.
+        
+        assert(~isempty(obj.inputAxy.xy),"Need coordinates!")
+        
+        disp("  ");
+        disp(" Start demo the final partition ");
+        disp("  ");
+        
+        figure(1);
+        clf reset;
+        colordef(1,'black');
+        gplotg(obj.inputAxy.A,obj.inputAxy.xy);
+        
+        disp(" Hit space to continue ... ");
+        disp("  ");
+        pause;
+        map = GetPartMap(obj,obj.numLevels);
+        gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
+        disp(" Hit space to end ... ");
+        disp("  ");
+        pause;
+        
+        end
+
     end
     
 end
