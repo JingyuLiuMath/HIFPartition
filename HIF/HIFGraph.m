@@ -34,7 +34,7 @@ classdef HIFGraph < handle
         
         parent; % Parent node.
         children = cell(1,2); % Children nodes.
-        nbNode = {}; % Neighbor nodes. In fact, we don't need this in HIF.
+        nbNode = {}; % Neighbor nodes.
         root; % Root node.
         
         % Matrices properties.

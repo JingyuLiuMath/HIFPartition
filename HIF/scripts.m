@@ -1,5 +1,7 @@
+% Recording some aborted code.
+%% ID decomposition.
 % [~,R,p] = qr(A,0);
-% % (m * n) = (m * n) (n * n)
+% (m * n) = (m * n) (n * n)
 % sizeR = size(R,1);
 % k = 0;
 % while k + 1 <= sizeR && R(k+1,k+1) ~=0
@@ -8,7 +10,7 @@
 % 
 % R1 = R(1:k,1:k);
 % R2 = R(1:k,k+1:end);
-% % Ahat = Q(:,1:k)*R1;
+% Ahat = Q(:,1:k)*R1;
 % Ahat = A(:,p(1:k));
 % T = R1\R2;
 % 
