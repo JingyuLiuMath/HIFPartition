@@ -18,9 +18,7 @@ classdef MFGraph < handle
         Axy; % Adjacency matrix (and coordinates of vertices).
         vtx; % Vertices on the graph.
         sep; % Separator vertices.
-        nb; % Neighbor vertices.
         int; % Interior vertices.
-        nbA; % Adjacency matrix of sep (row) and nb (col).
         
         % Partition properties.
         
@@ -33,7 +31,7 @@ classdef MFGraph < handle
         
         parent; % Parent node.
         children = cell(1,2); % Children nodes.
-        nbNode = {}; % Neighbor nodes. In fact, we don't need this in MF.
+        nbNode; % Neighbor nodes.
         root; % Root node.
         
         % Matrices properties.
@@ -57,7 +55,7 @@ classdef MFGraph < handle
     
     methods
         
-        function obj = MFGraph(Axy,level,seqNum,vtx,sep,nb,nbA)
+        function obj = MFGraph(Axy,level,seqNum,vtx,sep)
         % MFGraph Create a MF class.
         
         if nargin == 1
@@ -66,8 +64,6 @@ classdef MFGraph < handle
             n = size(Axy.A,1);
             vtx = 1:1:n;
             sep = [];
-            nb = [];
-            nbA = [];
             
             active = ones(1,n);
             obj.root = obj;
@@ -80,8 +76,6 @@ classdef MFGraph < handle
         obj.seqNum = seqNum;
         obj.vtx = vtx;
         obj.sep = sep;
-        obj.nb = nb;
-        obj.nbA = nbA;
         
         end
         
@@ -102,35 +96,36 @@ classdef MFGraph < handle
         if n <= minvtx
             obj.numLevels = obj.level;
             obj.endFlag = 1;
+            obj.Axy = [];
             return
         end
         
         if isempty(obj.Axy.xy)
             % Specpart.
-            [p1,p2,sep1,sep2] = specpart(obj.Axy.A);
-            sep1 = unique(sep1);
+            [p1,p2,~,sep2] = specpart(obj.Axy.A);
             sep2 = unique(sep2);
             child1Axy.A = obj.Axy.A(p1,p1); child1Axy.xy = [];
             child2Axy.A = obj.Axy.A(p2,p2); child2Axy.xy = [];
         else
             % Geopart.
-            [p1,p2,sep1,sep2] = geopart(obj.Axy.A,obj.Axy.xy,numtries);
-            sep1 = unique(sep1);
+            [p1,p2,~,sep2] = geopart(obj.Axy.A,obj.Axy.xy,numtries);
             sep2 = unique(sep2);
             child1Axy.A = obj.Axy.A(p1,p1); child1Axy.xy = obj.Axy.xy(p1,:);
             child2Axy.A = obj.Axy.A(p2,p2); child2Axy.xy = obj.Axy.xy(p2,:);
         end
+        % Sep only belong to he node whose order is higher.
         
         % Create children MF.
-        obj.children{1} = MFGraph(child1Axy,obj.level+1,obj.seqNum*2,...
-            obj.vtx(p1),obj.vtx(sep1),obj.vtx(sep2),obj.Axy.A(sep1,sep2));
+        obj.children{1} = MFGraph(child1Axy,obj.level+1,obj.seqNum*2,obj.vtx(p1),obj.vtx(sep2));
         obj.children{1}.root = obj.root;
-        obj.children{2} = MFGraph(child2Axy,obj.level+1,obj.seqNum*2+1,...
-            obj.vtx(p2),obj.vtx(sep2),obj.vtx(sep1),obj.Axy.A(sep2,sep1));
+        obj.children{2} = MFGraph(child2Axy,obj.level+1,obj.seqNum*2+1,obj.vtx(p2),obj.vtx(sep2));
         obj.children{2}.root = obj.root;
         
         % Pass information to its children.
         obj = Pass(obj);
+        
+        % Clear data we don't need.
+        obj.Axy = [];
         
         % Recursively buildtree.
         for iter = [1,2]
@@ -150,55 +145,16 @@ classdef MFGraph < handle
         end
         
         function obj = Pass(obj)
-        % PASS Send parent's sep, nb, nbA to children.
+        % PASS Send parent's sep to children.
         
         for i = 1:length(obj.sep)
             sepi = obj.sep(i);
-            for iter = [1, 2]
-                obj_child = obj.children{iter};
-                index_sepi_childnode = find(obj_child.vtx == sepi,1);
-                if isempty(index_sepi_childnode)
-                    continue;
-                end
-                % Now sepi is a vtx of child.
-                index_sepi_childsep = find(obj_child.sep == sepi,1);
-                num_childnb = length(obj_child.nb);
-                num_childsep = length(obj_child.sep);
-                if ~isempty(index_sepi_childsep)
-                    % Now sepi is a sep of child, we need to pass nb and nbA.
-                    index_addnb_nb = find(obj.nbA(i,:)~=0); % index_addnb_nb is always nonempty!
-                    for j = 1: length(index_addnb_nb)
-                        addnbj = obj.nb(index_addnb_nb(j)); % addnbj is a neigbor vtx.
-                        index_addnbj_childnb = find(obj_child.nb == addnbj,1);
-                        % index_addnb_childnb may be nonempty (addnbj has been added).
-                        if isempty(index_addnbj_childnb)
-                            % Now addnbj is NOT in child's nb,we need to add nb and nbA.
-                            obj_child.nb = [obj_child.nb,addnbj];
-                            num_childnb = num_childnb+1;
-                            obj_child.nbA(index_sepi_childsep,num_childnb) = obj.nbA(i,index_addnb_nb(j));
-                        else
-                            % Now addnbj is in child's nb, we only need to add nbA.
-                            obj_child.nbA(index_sepi_childsep,index_addnbj_childnb) = obj.nbA(i,index_addnb_nb(j));
-                        end
-                    end
-                else
-                    % Now sepi is NOT a sep of child, we need to pass sep,nb and nbA.
-                    obj_child.sep = [obj_child.sep,sepi];
-                    num_childsep = num_childsep+1;
-                    index_addnb_nb = find(obj.nbA(i,:)~=0);% index_addnb_nb is always nonempty!
-                    for j = 1: length(index_addnb_nb)
-                        addnbj = obj.nb(index_addnb_nb(j)); % addnbj is a neighbor vtx.
-                        index_addnbj_childnb = find(obj_child.nb == addnbj,1);
-                        % index_addnb_childnb may be nonempty (addnbj has been added).
-                        if isempty(index_addnbj_childnb)
-                            % Now addnbj is NOT in child's nb, we need to add nb and nbA.
-                            obj_child.nb = [obj_child.nb,addnbj];
-                            num_childnb = num_childnb +1;
-                            obj_child.nbA(num_childsep,num_childnb) = obj.nbA(i,index_addnb_nb(j));
-                        else
-                            % Now addnbj is in child's nb, we only need to add nbA.
-                            obj_child.nbA(num_childsep,index_addnbj_childnb) = obj.nbA(i,index_addnb_nb(j));
-                        end
+            nb = find(obj.root.inputAxy.A(:,sepi) ~= 0); % Vtx interact with sepi.
+            for iter = [1,2]
+                if ~isempty(intersect(nb,obj.children{iter}.vtx))
+                    % We need to add sepi to the children. 
+                    if isempty(find(obj.children{iter}.sep == sepi,1))
+                        obj.children{iter}.sep(end+1) = sepi;
                     end
                 end
             end
@@ -209,6 +165,9 @@ classdef MFGraph < handle
         function obj = SetNbNode(obj)
         % SetNbNode Set nbNode.
         
+        % NOTE: nbNode is a list of struct which has 3 fields:
+        % node, sep, nb.
+        
         % We stand on the parent level to assign its children's nbNode.
         if obj.endFlag == 1
             return;
@@ -216,22 +175,39 @@ classdef MFGraph < handle
         
         for iter = [1,2]
             obj_child = obj.children{iter};
-            obj_child.nbNode{end+1} = obj.children{3-iter};
+            tmp = struct();
+            tmp(1).node = obj.children{3-iter};
+            tmp(1).sep = intersect(obj_child.sep,obj.children{3-iter}.sep,'sorted');
+            tmp(1).nb = [];
+            for i = 1:length(tmp(1).sep)
+                tmpnb = find(obj.root.inputAxy.A(:,tmp(1).sep(i)) ~= 0);
+                tmp(1).nb = [tmp(1).nb,tmpnb'];
+            end
+            tmp(1).nb = unique(tmp(1).nb);
+            tmp(1).nb = setdiff(tmp(1).nb,tmp(1).sep,'sorted');
             % We only need to find nbNode from the children node of
             % parent's nbNode.
             if ~isempty(obj.nbNode)
                 for i = 1:length(obj.nbNode)
-                    nbNodei = obj.nbNode{i};
+                    nbNodei = obj.nbNode(i).node;
                     % What we need is to check whether the vtx of nbNodei's
                     % chilren is in the nb of obj_child.
                     for it = [1,2]
                         nbNodei_child = nbNodei.children{it};
-                        if ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
-                            obj_child.nbNode{end+1} = nbNodei_child;
+                        if ~isempty(intersect(obj_child.sep,nbNodei_child.vtx))
+                            tmp(end+1).node = nbNodei_child;
+                            tmp(end).sep = intersect(obj_child.sep,nbNodei_child.sep,'sorted');
+                            for j = 1:length(tmp(end).sep)
+                                tmpnb = find(obj.root.inputAxy.A(:,tmp(end).sep(j)) ~= 0);
+                                tmp(end).nb = [tmp(end).nb,tmpnb'];
+                            end
+                            tmp(end).nb = unique(tmp(end).nb);
+                            tmp(end).nb = setdiff(tmp(end).nb,tmp(end).sep,'sorted');
                         end
                     end
                 end
             end
+            obj.children{iter}.nbNode = tmp;
         end
         
         % Recursively setNbNode.
@@ -244,12 +220,8 @@ classdef MFGraph < handle
         function obj = FillTree(obj)
         % FillTree Fill tree structure with A.
         
-        % We clear the following data: Axy, nbA and sort vtx, sep, nb.
-        % In fact, they can be clear after being passed to children.
-        obj.Axy = []; obj.nbA = [];
         obj.vtx = sort(obj.vtx);
         obj.sep = sort(obj.sep);
-        obj.nb = sort(obj.nb);
         
         if obj.endFlag == 0
             % We only fill the leaf nodes.
@@ -257,14 +229,16 @@ classdef MFGraph < handle
                 obj.children{iter} = FillTree(obj.children{iter});
             end
         else
-            % First, we set int = vtx - sep (only holds on leaf nodes).
+            % First, we set int = vtx - sep (only holds on leaf nodes) and
+            % sep must belong to the node. 
             obj.int = setdiff(obj.vtx,obj.sep,'sorted');
+            obj.sep = interact(obj.sep,obj.vtx,'sorted');
             % Then, we set the corresponding A**.
             rootMF = obj.root;
             obj.AII = rootMF.inputAxy.A(obj.int,obj.int);
             obj.ASI = rootMF.inputAxy.A(obj.sep,obj.int);
             obj.ASS = rootMF.inputAxy.A(obj.sep,obj.sep);
-            obj.ANS = rootMF.inputAxy.A(obj.nb,obj.sep);
+
         end
         
         end
@@ -322,7 +296,7 @@ classdef MFGraph < handle
         
         obj.root.active(obj.int) = 0;
         L = chol(obj.AII,'lower'); % AII = L * L^T.
-        obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}.
+        obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}.  
         obj.AIIinvAIS = L\(obj.ASI');
         obj.AIIinvAIS = L'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
         obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS; % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
@@ -349,7 +323,7 @@ classdef MFGraph < handle
         
         % First we tell the parent what its int is after we eliminate
         % the children's vtx.
-        % int: children's sep - sep
+        % int: children's sep - sep.
         
         for iter = [1,2]
             obj.int = [obj.int,obj.children{iter}.sep];
@@ -358,12 +332,11 @@ classdef MFGraph < handle
         
         % Next we assign the corresponding matrices.
         % From child to parent.
-        % int: children's sep and children's nb
-        % sep: children's sep and children's nb
-        % nb: children's nb
+        % int: children's vtx.
+        % sep: children's sep.
         
         obj.AII = zeros(length(obj.int));
-        % An int of the parent only belongs to the sep of one of its
+        % An int of the parent only belongs to the vtx of one of its
         % children. If two ints belong to the same child, we assign AII
         % from the child's ASS. Otherwise, we assign AII from one child's
         % ANS or 0.
