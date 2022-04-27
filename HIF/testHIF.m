@@ -41,7 +41,7 @@ disp('Relative error:')
 disp(norm(HIF.solution - x)/norm(x))
 
 %%
-[A,xy] = grid5(16);
+[A,xy] = grid5(8);
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;

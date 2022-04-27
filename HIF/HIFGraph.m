@@ -342,20 +342,20 @@ classdef HIFGraph < handle
         
         function obj = Skel(obj)
         % Skel Skeletonization.
-        
+
         % ID decomposition.
         [T,p1,p2] = ID([obj.ASS;obj.ANS], 1e-2);
         if ~isempty(p1) && ~isempty(p2) 
             disp("We actually skel")
         end
-        
+
         % ANS(:,p2) approx ANS(:,p1) * T.
         obj.sk = obj.sep(p1);
         obj.re = obj.sep(p2);
         obj.Tsr = T;
         obj.ps = p1;
         obj.pr = p2;
-        
+
         % tmp1 = T^{T} * Asr, tmp2 = Ass * T.
         tmp1 = T'* obj.ASS(p1,p2);
         tmp2 = obj.ASS(p1,p1)*T;
@@ -363,7 +363,7 @@ classdef HIFGraph < handle
         obj.ASS(p1,p2) = obj.ASS(p1,p2) - tmp2; % Asr = Asr - Ass * T
         obj.ASS(p2,p1) = obj.ASS(p1,p2)';
         obj.ANS(:,p2) = 0;
-        
+
         % Sparse elimination.
         obj.root.active(obj.re) = 0;
         L = chol(obj.ASS(p2,p2),'lower'); % Arr = L * L^T.
@@ -371,9 +371,9 @@ classdef HIFGraph < handle
         obj.ArrinvArs = L\(obj.ASS(p1,p2)');
         obj.ArrinvArs = L'\obj.ArrinvArs;
         obj.ASS(p1,p1) = obj.ASS(p1,p1) - obj.ASS(p1,p2)*obj.ArrinvArs; % Ass = Ass - Asr * Arr^{-1} * Asr^{T}.
-        
+
         end
-        
+
         function obj = NoSkel(obj)
         % NoSkel No skeletonization.
         
