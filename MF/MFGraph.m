@@ -47,7 +47,7 @@ classdef MFGraph < handle
         ANS; % Interaction between nb and sep.
         DI; % The D part of LDL factorization about AII.
         LI; % The L part of LDL factorization about AII.
-        AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}
+        AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
         
         % Vectors properties.
         
