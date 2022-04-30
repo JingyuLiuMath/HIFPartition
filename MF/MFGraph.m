@@ -45,7 +45,8 @@ classdef MFGraph < handle
         ASI; % Interaction between sep and int.
         ASS; % Interaction between sep and sep.
         ANS; % Interaction between nb and sep.
-        AIIinv; % AIIinv = L^{-T} where AII = L * L^{T}.
+        DI; % The D part of LDL factorization about AII.
+        LI; % The L part of LDL factorization about AII.
         AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}
         
         % Vectors properties.
@@ -321,10 +322,10 @@ classdef MFGraph < handle
         % SparseElim Sparse elimination.
         
         obj.root.active(obj.int) = 0;
-        L = chol(obj.AII,'lower'); % AII = L * L^T.
-        obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}.
-        obj.AIIinvAIS = L\(obj.ASI');
-        obj.AIIinvAIS = L'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
+        [obj.LI,obj.DI] = ldl(obj.AII); %% AII = L * D * L'.
+        obj.AIIinvAIS = obj.LI\(obj.ASI');
+        obj.AIIinvAIS = obj.DI\obj.AIIinvAIS;
+        obj.AIIinvAIS = obj.LI'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
         obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS; % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
         
         end
@@ -475,8 +476,7 @@ classdef MFGraph < handle
         % RootFactorization Factorization on the root.
         
         obj.root.active(obj.int) = 0;
-        L = chol(obj.AII,'lower'); % AII = L * L^T.
-        obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}
+        [obj.LI,obj.DI] = ldl(obj.AII); % AII = L * L^T.
         
         end
         
@@ -555,7 +555,10 @@ classdef MFGraph < handle
         %ApplyUp Phase 1 for applying MF
         
         obj.xS = obj.xS - obj.AIIinvAIS'*obj.xI;
-        obj.xI = obj.AIIinv'*obj.xI;
+        obj.xI = obj.LI\obj.xI;
+        
+        % We only apply D once.
+        obj.xI = obj.DI\obj.xI;
         
         end
         
@@ -613,7 +616,11 @@ classdef MFGraph < handle
         function obj = RootApply(obj)
         % RootApply Apply on the root.
         
-        obj.xI = obj.AIIinv * (obj.AIIinv' * obj.xI);
+        obj.xI = obj.LI\obj.xI;
+        
+        obj.xI = obj.DI\obj.xI;
+        
+        obj.xI = obj.LI'\obj.xI;
         
         end
         
@@ -679,7 +686,7 @@ classdef MFGraph < handle
         function obj = ApplyDown(obj)
         % ApplyDown Phase 2 for applying MF.
         
-        obj.xI = obj.AIIinv*obj.xI - obj.AIIinvAIS*obj.xS;
+        obj.xI = obj.LI'\obj.xI - obj.AIIinvAIS*obj.xS;
         
         end
         
