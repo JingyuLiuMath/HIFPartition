@@ -8,21 +8,19 @@ classdef HIFGraph < handle
         % The following information will be stored only in the root node.
         
         inputAxy; % Input Axy.
-        active; % Whether a vtx is eliminated. 
+        active; % Whether a vtx is eliminated.
         inputVec; % Input vec.
         solution; % Solution.
         demoHIF = 0; % Whether to demo our HIF process.
-
+        
         % Graph properties.
         
         Axy; % Adjacency matrix (and coordinates of vertices).
         vtx; % Vertices on the graph.
         sep; % Separator vertices.
         nb; % Neighbor vertices.
-        int; % Interior vertices. 
+        int; % Interior vertices.
         nbA; % Adjacency matrix of sep (row) and nb (col).
-        sk; % Skeleton sep.
-        re; % Redundant sep.
         
         % Partition properties.
         
@@ -35,7 +33,7 @@ classdef HIFGraph < handle
         
         parent; % Parent node.
         children = cell(1,2); % Children nodes.
-        nbNode = {}; % Neighbor nodes.
+        nbNode = {}; % Neighbor nodes. In fact, we don't need this in HIF.
         root; % Root node.
         
         % Matrices properties.
@@ -43,17 +41,13 @@ classdef HIFGraph < handle
         % For the following matrices, the fist index is row, and the second
         % index is col.
         
-        AII; % Interaction between int and int. 
-        ASI; % Interaction between sep and int. 
-        ASS; % Interaction between sep and sep. 
-        ANS; % Interaction between nb and sep. 
-        AIIinv; % AIIinv = L^{-T} where AII = L * L^{T}. 
-        AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
-        ps; % Permutation vector of sk.
-        pr; % Permutation vector of re.
-        Tsr; % Interpolation matrix.
-        Arrinv; % Arrinv = L^{-T} where Arr = L * L^{T}.
-        ArrinvArs; % ArrinvArs = Arr^{-1} * Asr^{T}.
+        AII; % Interaction between int and int.
+        ASI; % Interaction between sep and int.
+        ASS; % Interaction between sep and sep.
+        ANS; % Interaction between nb and sep.
+        DI; % The D part of LDL factorization about AII.
+        LI; % The L part of LDL factorization about AII.
+        AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}
         
         % Vectors properties.
         
@@ -101,7 +95,7 @@ classdef HIFGraph < handle
             disp("  ");
         end
         
-        numtries = 30; % Only when using geopart.
+        numtries = 30; % Only useful when using geopart.
         minvtx = 16; % Don't separate pieces smaller than this.
         
         n = size(obj.Axy.A,1);
@@ -116,7 +110,7 @@ classdef HIFGraph < handle
             % Specpart.
             [p1,p2,sep1,sep2] = specpart(obj.Axy.A);
             sep1 = unique(sep1);
-            sep2 = unique(sep2);            
+            sep2 = unique(sep2);
             child1Axy.A = obj.Axy.A(p1,p1); child1Axy.xy = [];
             child2Axy.A = obj.Axy.A(p2,p2); child2Axy.xy = [];
         else
@@ -127,26 +121,26 @@ classdef HIFGraph < handle
             child1Axy.A = obj.Axy.A(p1,p1); child1Axy.xy = obj.Axy.xy(p1,:);
             child2Axy.A = obj.Axy.A(p2,p2); child2Axy.xy = obj.Axy.xy(p2,:);
         end
-
+        
         % Create children HIF.
         obj.children{1} = HIFGraph(child1Axy,obj.level+1,obj.seqNum*2,...
             obj.vtx(p1),obj.vtx(sep1),obj.vtx(sep2),obj.Axy.A(sep1,sep2));
         obj.children{1}.root = obj.root;
         obj.children{2} = HIFGraph(child2Axy,obj.level+1,obj.seqNum*2+1,...
-            obj.vtx(p2),obj.vtx(sep2),obj.vtx(sep1),obj.Axy.A(sep2,sep1));      
+            obj.vtx(p2),obj.vtx(sep2),obj.vtx(sep1),obj.Axy.A(sep2,sep1));
         obj.children{2}.root = obj.root;
-
+        
         % Pass information to its children.
         obj = Pass(obj);
-
+        
         % Recursively buildtree.
         for iter = [1,2]
             obj.children{iter} = BuildTree(obj.children{iter});
             obj.children{iter}.parent = obj;
         end
-
+        
         % Get numLevels from children when partition ends.
-        obj.numLevels = max(obj.children{1}.numLevels,obj.children{2}.numLevels);    
+        obj.numLevels = max(obj.children{1}.numLevels,obj.children{2}.numLevels);
         
         if obj.level == 0
             disp("  ");
@@ -224,7 +218,7 @@ classdef HIFGraph < handle
         for iter = [1,2]
             obj_child = obj.children{iter};
             obj_child.nbNode{end+1} = obj.children{3-iter};
-            % We only need to find nbNode from the children node of 
+            % We only need to find nbNode from the children node of
             % parent's nbNode.
             if ~isempty(obj.nbNode)
                 for i = 1:length(obj.nbNode)
@@ -245,7 +239,7 @@ classdef HIFGraph < handle
         for iter = [1,2]
             obj.children{iter} = SetNbNode(obj.children{iter});
         end
-
+        
         end
                 
         function obj = FillTree(obj)
@@ -261,7 +255,7 @@ classdef HIFGraph < handle
         if obj.endFlag == 0
             % We only fill the leaf nodes.
             for iter = [1,2]
-                 obj.children{iter} = FillTree(obj.children{iter});
+                obj.children{iter} = FillTree(obj.children{iter});
             end
         else
             % First, we set int = vtx - sep (only holds on leaf nodes).
@@ -276,8 +270,12 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = Factorization(obj)
+        function obj = Factorization(obj,demoHIF)
         % Factorization HIF factorization.
+        
+        if nargin > 1
+            obj.demoHIF = demoHIF;
+        end
         
         disp("  ");
         disp(" Start factorization ");
@@ -286,15 +284,21 @@ classdef HIFGraph < handle
         for tmplevel = obj.numLevels:-1:1
             % Sparse elimination.
             obj = RecursiveSparseElim(obj,tmplevel);
-            % Skeletonization.
-            obj = RecursiveSkel(obj,tmplevel);
+            % Demo the process.
+            if obj.demoHIF == 1
+                DemoHIF(obj,tmplevel);
+            end
             % Merge.
             obj = RecursiveMerge(obj,tmplevel-1);
         end
         
         % Root factorization.
         obj = RootFactorization(obj);
-
+        % Demo the process.
+        if obj.demoHIF == 1
+            DemoHIF(obj,0);
+        end
+        
         disp("  ");
         disp(" End factorization ");
         disp("  ");
@@ -318,67 +322,11 @@ classdef HIFGraph < handle
         % SparseElim Sparse elimination.
         
         obj.root.active(obj.int) = 0;
-        L = chol(obj.AII,'lower'); % AII = L * L^T.
-        obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}.
-        obj.AIIinvAIS = L\(obj.ASI');
-        obj.AIIinvAIS = L'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
+        [obj.LI,obj.DI] = ldl(obj.AII); %% AII = L * D * L'.
+        obj.AIIinvAIS = obj.LI\(obj.ASI');
+        obj.AIIinvAIS = obj.DI\obj.AIIinvAIS;
+        obj.AIIinvAIS = obj.LI'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
         obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS; % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
-        
-        end
-        
-        function obj = RecursiveSkel(obj,whatlevel)
-        % RecursiveSkel Recursively skeletonization.
-        
-        if obj.level == whatlevel
-            obj = Skel(obj);
-            % obj = NoSkel(obj);
-        else
-            for iter = [1,2]
-                obj.children{iter} = RecursiveSkel(obj.children{iter},whatlevel);
-            end
-        end
-        
-        end
-        
-        function obj = Skel(obj)
-        % Skel Skeletonization.
-
-        % ID decomposition.
-        [T,p1,p2] = ID([obj.ASS;obj.ANS], 1e-2);
-        if ~isempty(p1) && ~isempty(p2) 
-            disp("We actually skel")
-        end
-
-        % ANS(:,p2) approx ANS(:,p1) * T.
-        obj.sk = obj.sep(p1);
-        obj.re = obj.sep(p2);
-        obj.Tsr = T;
-        obj.ps = p1;
-        obj.pr = p2;
-
-        % tmp1 = T^{T} * Asr, tmp2 = Ass * T.
-        tmp1 = T'* obj.ASS(p1,p2);
-        tmp2 = obj.ASS(p1,p1)*T;
-        obj.ASS(p2,p2) = obj.ASS(p2,p2) - tmp1 - tmp1'+ T'*tmp2; % Arr = Arr - T^{T} * Asr - Asr^{T} * T + T^{T} * Ass * T.
-        obj.ASS(p1,p2) = obj.ASS(p1,p2) - tmp2; % Asr = Asr - Ass * T
-        obj.ASS(p2,p1) = obj.ASS(p1,p2)';
-        obj.ANS(:,p2) = 0;
-
-        % Sparse elimination.
-        obj.root.active(obj.re) = 0;
-        L = chol(obj.ASS(p2,p2),'lower'); % Arr = L * L^T.
-        obj.Arrinv =  L'\eye(size(L,1)); % Arrinv = L^{-T}.
-        obj.ArrinvArs = L\(obj.ASS(p1,p2)');
-        obj.ArrinvArs = L'\obj.ArrinvArs;
-        obj.ASS(p1,p1) = obj.ASS(p1,p1) - obj.ASS(p1,p2)*obj.ArrinvArs; % Ass = Ass - Asr * Arr^{-1} * Asr^{T}.
-
-        end
-
-        function obj = NoSkel(obj)
-        % NoSkel No skeletonization.
-        
-        obj.sk = obj.sep;
-        obj.ps = 1:1:length(obj.sep);
         
         end
         
@@ -396,29 +344,18 @@ classdef HIFGraph < handle
         end
         
         function obj = Merge(obj)
-        % Merge Send matrices information from children to parent.
+        % Merge Send matrices' information from children to parent.
         
         % We stand on the parent level.
         
-        % First we tell the parent what's its int, sep, nb after
-        % eliminating the children's vtx.
-        % sep: sep - children's re.
-        % int: children's sk - sep.
-        % nb: from root's A; 
+        % First we tell the parent what its int is after we eliminate
+        % the children's vtx.
+        % int: children's sep - sep
         
-        tmpre = [];
         for iter = [1,2]
-            obj.int = [obj.int,obj.children{iter}.sk];
-            tmpre = [tmpre,obj.children{iter}.re];
+            obj.int = [obj.int,obj.children{iter}.sep];
         end
-        obj.sep = setdiff(obj.sep,tmpre,'sorted');
         obj.int = setdiff(obj.int,obj.sep,'sorted');
-        obj.nb = [];
-        for i =1:length(obj.sep)
-            obj.nb = [obj.nb,find(obj.root.inputAxy.A(:,obj.sep(i)) ~= 0)'];
-        end
-        obj.nb = sort(obj.nb);
-        obj.nb = unique(obj.nb);
         
         % Next we assign the corresponding matrices.
         % From child to parent.
@@ -429,7 +366,7 @@ classdef HIFGraph < handle
         obj.AII = zeros(length(obj.int));
         % An int of the parent only belongs to the sep of one of its
         % children. If two ints belong to the same child, we assign AII
-        % from the child's ASS. Otherwise, we assign AII from one child's 
+        % from the child's ASS. Otherwise, we assign AII from one child's
         % ANS or 0.
         for j = 1:length(obj.int)
             intj = obj.int(j);
@@ -458,7 +395,7 @@ classdef HIFGraph < handle
         obj.ASI = zeros(length(obj.sep),length(obj.int));
         % A sep of the parent only belongs to the sep of one of its
         % children. If an int and a sep belongs to the same child, we
-        % assign ASI from the child's ASS. Otherwise, we assign ASI from 
+        % assign ASI from the child's ASS. Otherwise, we assign ASI from
         % the int child's ANS or 0.
         for j = 1:length(obj.int)
             intj = obj.int(j);
@@ -534,27 +471,26 @@ classdef HIFGraph < handle
         end
         
         end
-                
+        
         function obj = RootFactorization(obj)
         % RootFactorization Factorization on the root.
         
         obj.root.active(obj.int) = 0;
-        L = chol(obj.AII,'lower'); % AII = L *  L^T.
-        obj.AIIinv = L'\eye(size(L,1)); % AIIinv = L^{-T}
+        [obj.LI,obj.DI] = ldl(obj.AII); % AII = L * L^T.
         
         end
         
         function obj = HIFSolve(obj,b)
         % HIFSolve Solve Ax = b through HIF.
         
-        disp('  ');
-        disp(' Start solve ');
-        disp('  ');
+        disp("  ");
+        disp(" Start solve ");
+        disp("  ");
         
         obj.inputVec = b;
         
         obj = BuildVecTree(obj,b);
-       
+        
         for tmplevel = obj.numLevels:-1:1
             obj = RecursiveApplyUp(obj,tmplevel);
             obj = RecursiveApplyMerge(obj,tmplevel-1);
@@ -562,17 +498,17 @@ classdef HIFGraph < handle
         
         obj = RootApply(obj);
         
-        for tmplevel = 1:1:obj.numLevels        
+        for tmplevel = 1:1:obj.numLevels
             obj = RecursiveApplySplit(obj,tmplevel-1);
             obj = RecursiveApplyDown(obj,tmplevel);
         end
         
         obj = GetSolution(obj);
         
-        disp('  ');
-        disp(' End solve ');
-        disp(' The solution is stored in obj.solution.');
-        disp('  ');
+        disp("  ");
+        disp(" End solve ");
+        disp(" The solution is stored in obj.solution.");
+        disp("  ");
         
         end
         
@@ -580,9 +516,9 @@ classdef HIFGraph < handle
         % BuildVecTree Fill b in our HIF tree.
         
         if obj.level == 0
-            disp('  ');
-            disp(' Start build vector tree ');
-            disp('  ');
+            disp("  ");
+            disp(" Start build vector tree ");
+            disp("  ");
         end
         
         if obj.endFlag == 0
@@ -595,9 +531,9 @@ classdef HIFGraph < handle
         end
         
         if obj.level == 0
-            disp('  ');
-            disp(' End build vector tree ');
-            disp('  ');
+            disp("  ");
+            disp(" End build vector tree ");
+            disp("  ");
         end
         
         end
@@ -618,20 +554,16 @@ classdef HIFGraph < handle
         function obj = ApplyUp(obj)
         %ApplyUp Phase 1 for applying HIF
         
-        % Apply sparse eliminination.
         obj.xS = obj.xS - obj.AIIinvAIS'*obj.xI;
-        obj.xI = obj.AIIinv'*obj.xI;
+        obj.xI = obj.LI\obj.xI;
         
-        % Apply skeletonization.
-        obj.xS(obj.pr) = obj.xS(obj.pr) - obj.Tsr' * obj.xS(obj.ps);
-        
-        obj.xS(obj.ps) = obj.xS(obj.ps) - obj.ArrinvArs' * obj.xS(obj.pr);
-        obj.xS(obj.pr) = obj.Arrinv'*obj.xS(obj.pr);
+        % We only apply D once.
+        obj.xI = obj.DI\obj.xI;
         
         end
         
         function obj = RecursiveApplyMerge(obj,whatlevel)
-        % RecursiveApplyMerge Recursively send vectors' information from children to parent.
+        % RecursiveApplyMerge Recusively send vectors' information from children to parent.
         
         if obj.level == whatlevel
             obj = ApplyMerge(obj);
@@ -640,17 +572,17 @@ classdef HIFGraph < handle
                 obj.children{iter} = RecursiveApplyMerge(obj.children{iter},whatlevel);
             end
         end
-            
+        
         end
         
         function obj = ApplyMerge(obj)
         % ApplyMerge Send vectors' information from children to parent.
         
         % We stand on the parent level.
-            
-        % We have specified the parent's int. So we only to assign the 
+        
+        % We have specified the parent's int. So we only to assign the
         % corresponding vectors.
-
+        
         obj.xI = zeros(length(obj.int),1);
         % An int of the parent only belongs to the sep of one of its
         % children. We get xI from the children's xS.
@@ -664,7 +596,7 @@ classdef HIFGraph < handle
             index_intj = find(obj.children{where_intj}.sep == intj);
             obj.xI(j) = obj.children{where_intj}.xS(index_intj);
         end
-
+        
         obj.xS = zeros(length(obj.sep),1);
         % A sep of the parent only belongs to the sep of one of its
         % children. We get xS from the children's xS.
@@ -684,12 +616,16 @@ classdef HIFGraph < handle
         function obj = RootApply(obj)
         % RootApply Apply on the root.
         
-        obj.xI = obj.AIIinv * (obj.AIIinv' * obj.xI);
+        obj.xI = obj.LI\obj.xI;
+        
+        obj.xI = obj.DI\obj.xI;
+        
+        obj.xI = obj.LI'\obj.xI;
         
         end
         
         function obj = RecursiveApplySplit(obj,whatlevel)
-        % RecursiveApplySplit Recursively send vectors' information from parent to children.
+        % RecursiveApplySplit Recusively send vectors' information from parent to children.
         
         if obj.level == whatlevel
             obj = ApplySplit(obj);
@@ -705,9 +641,9 @@ classdef HIFGraph < handle
         % ApplySplit Send vectors' information from parent to children.
         
         % We stand on the parent level.
-
-        % We only need to assign the correspond vectors of the children.
-
+        
+        % We only need to assign the corresponding vectors of the children.
+        
         % xI
         for j = 1:length(obj.int)
             intj = obj.int(j);
@@ -719,7 +655,7 @@ classdef HIFGraph < handle
             index_intj = find(obj.children{where_intj}.sep == intj);
             obj.children{where_intj}.xS(index_intj) = obj.xI(j);
         end
-
+        
         % xS
         for j = 1:length(obj.sep)
             sepj = obj.sep(j);
@@ -731,7 +667,7 @@ classdef HIFGraph < handle
             index_sepj = find(obj.children{where_sepj}.sep == sepj);
             obj.children{where_sepj}.xS(index_sepj) = obj.xS(j);
         end
-          
+        
         end
         
         function obj = RecursiveApplyDown(obj,whatlevel)
@@ -745,17 +681,12 @@ classdef HIFGraph < handle
             end
         end
         
-        end 
+        end
         
         function obj = ApplyDown(obj)
         % ApplyDown Phase 2 for applying HIF.
         
-        % Apply skeletonization.
-        obj.xS(obj.ps) = obj.xS(obj.ps) - obj.Tsr * obj.xS(obj.pr);
-        obj.xS(obj.pr) = obj.Arrinv * obj.xS(obj.pr) - obj.ArrinvArs * obj.xS(obj.ps);
-        
-        % Apply sparse elminination.
-        obj.xI = obj.AIIinv*obj.xI - obj.AIIinvAIS*obj.xS;
+        obj.xI = obj.LI'\obj.xI - obj.AIIinvAIS*obj.xS;
         
         end
         
@@ -768,13 +699,11 @@ classdef HIFGraph < handle
         
         if obj.endFlag == 0
             obj.root.solution(obj.int) = obj.xI;
-            obj.root.solution(obj.re) = obj.xS(obj.pr);
             for iter = [1,2]
                 obj.children{iter} = GetSolution(obj.children{iter});
             end
         else
             obj.root.solution(obj.int) = obj.xI;
-            obj.root.solution(obj.re) = obj.xS(obj.pr);
         end
         
         end
@@ -861,6 +790,59 @@ classdef HIFGraph < handle
         
         end
 
+        function DemoHIF(obj,whatlevel)
+        % DemoHIF Demo the HIF process.
+        
+        assert(~isempty(obj.inputAxy.xy), "Need coordinates!")
+        
+        if whatlevel == obj.numLevels
+            DemoFinalPart(obj);
+        end
+        
+        disp("  ");
+        disp(" Current level: " + whatlevel);
+        disp("  ");
+        
+        
+        map = GetHIFMap(obj,whatlevel);
+        inactive = find(obj.active == 0);
+        start = max(map) + 1;
+        n = length(inactive);
+        map(inactive) = start:start+n-1;
+        gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
+        if whatlevel ~= 0
+            disp(" Hit space to continue ...");
+        else
+            disp(" Hit space to end ...");
+        end
+        disp("  ");
+        pause;
+        
+        end
+        
+        function map = GetHIFMap(obj,whatlevel,map)
+        % GetHIFMap Recursively get HIF map.
+        
+        if nargin == 2
+            map = [];
+        end
+        
+        if obj.level == 0
+            n = size(obj.inputAxy.xy,1);
+            map = ones(1,n);
+        end
+        
+        if obj.level == whatlevel
+            map(obj.vtx) = obj.seqNum;
+            return;
+        else
+            for iter = [1,2]
+                map = GetHIFMap(obj.children{iter},whatlevel,map);
+            end
+        end
+        
+        end
+        
     end
     
 end
