@@ -1,4 +1,4 @@
-%%
+%% A simple example.
 % 1 - 5
 % |   |
 % 2 - 6
@@ -30,8 +30,8 @@ Axy.xy = xy;
 
 HIF = HIFGraph(Axy);
 HIF = BuildTree(HIF);
+DemoFinalPart(HIF);
 HIF = SetNbNode(HIF);
-% DemoPart(testHIF)
 HIF = FillTree(HIF);
 HIF = Factorization(HIF);
 x = ones(size(A,1),1);
@@ -40,19 +40,40 @@ HIF = HIFSolve(HIF,b);
 disp('Relative error:')
 disp(norm(HIF.solution - x)/norm(x))
 
-%%
-[A,xy] = grid5(8);
+%% 2D example
+[A,xy] = grid5(16);
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;
-% Axy.xy = [];
+% Axy.xy = []
 
 HIF = HIFGraph(Axy);
 HIF = BuildTree(HIF);
 HIF = SetNbNode(HIF);
 % DemoPart(HIF)
+% DemoFinalPart(HIF);
 HIF = FillTree(HIF);
-HIF = Factorization(HIF);
+HIF = Factorization(HIF,0);
+x = rand(size(A,1),1);
+b = A*x;
+HIF = HIFSolve(HIF,b);
+disp('Relative error:')
+disp(norm(HIF.solution - x)/norm(x))
+
+%% 3D example.
+[A,xy] = grid3d(8);
+A = full(A);
+Axy.A = A;
+Axy.xy = xy;
+% Axy.xy = []
+
+HIF = HIFGraph(Axy);
+HIF = BuildTree(HIF);
+HIF = SetNbNode(HIF);
+% DemoPart(HIF)
+% DemoFinalPart(HIF);
+HIF = FillTree(HIF);
+HIF = Factorization(HIF,1);
 x = rand(size(A,1),1);
 b = A*x;
 HIF = HIFSolve(HIF,b);

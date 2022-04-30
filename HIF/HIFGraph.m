@@ -111,32 +111,38 @@ classdef HIFGraph < handle
             [p1,p2,sep1,sep2] = specpart(obj.Axy.A);
             sep1 = unique(sep1);
             sep2 = unique(sep2);
-            child1Axy.A = obj.Axy.A(p1,p1); child1Axy.xy = [];
-            child2Axy.A = obj.Axy.A(p2,p2); child2Axy.xy = [];
+            p = {p1,p2};
+            partsep = {sep1,sep2};
+            childAxy(1).A = obj.Axy.A(p1,p1); childAxy(1).xy = [];
+            childAxy(2).A = obj.Axy.A(p2,p2); childAxy(2).xy = [];
         else
             % Geopart.
             [p1,p2,sep1,sep2] = geopart(obj.Axy.A,obj.Axy.xy,numtries);
             sep1 = unique(sep1);
             sep2 = unique(sep2);
-            child1Axy.A = obj.Axy.A(p1,p1); child1Axy.xy = obj.Axy.xy(p1,:);
-            child2Axy.A = obj.Axy.A(p2,p2); child2Axy.xy = obj.Axy.xy(p2,:);
+            p = {p1,p2};
+            partsep = {sep1,sep2};
+            childAxy(1).A = obj.Axy.A(p1,p1); childAxy(1).xy = obj.Axy.xy(p1,:);
+            childAxy(2).A = obj.Axy.A(p2,p2); childAxy(2).xy = obj.Axy.xy(p2,:);
         end
         
         % Create children HIF.
-        obj.children{1} = HIFGraph(child1Axy,obj.level+1,obj.seqNum*2,...
-            obj.vtx(p1),obj.vtx(sep1),obj.vtx(sep2),obj.Axy.A(sep1,sep2));
-        obj.children{1}.root = obj.root;
-        obj.children{2} = HIFGraph(child2Axy,obj.level+1,obj.seqNum*2+1,...
-            obj.vtx(p2),obj.vtx(sep2),obj.vtx(sep1),obj.Axy.A(sep2,sep1));
-        obj.children{2}.root = obj.root;
+        for iter = [1,2]
+            obj.children{iter} = HIFGraph(childAxy(iter),obj.level+1,obj.seqNum*2+(iter-1),...
+            obj.vtx(p{iter}),obj.vtx(partsep{iter}),obj.vtx(partsep{3-iter}),obj.Axy.A(partsep{iter},partsep{3-iter}));
+            obj.children{iter}.root = obj.root;
+            obj.children{iter}.parent = obj;
+        end
         
         % Pass information to its children.
         obj = Pass(obj);
         
+        % Clear information.
+        obj.Axy = [];
+        
         % Recursively buildtree.
         for iter = [1,2]
             obj.children{iter} = BuildTree(obj.children{iter});
-            obj.children{iter}.parent = obj;
         end
         
         % Get numLevels from children when partition ends.
@@ -149,7 +155,7 @@ classdef HIFGraph < handle
         end
         
         end
-        
+              
         function obj = Pass(obj)
         % PASS Send parent's sep, nb, nbA to children.
         
@@ -327,6 +333,7 @@ classdef HIFGraph < handle
         obj.AIIinvAIS = obj.DI\obj.AIIinvAIS;
         obj.AIIinvAIS = obj.LI'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
         obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS; % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
+        obj.AII = [];
         
         end
         
