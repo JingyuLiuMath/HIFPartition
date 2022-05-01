@@ -21,6 +21,9 @@ classdef HIFGraph < handle
         nb; % Neighbor vertices.
         int; % Interior vertices.
         nbA; % Adjacency matrix of sep (row) and nb (col).
+        re; % Redundant sep. We also use check (c) to reprsent it.
+        sk; % Skeleton sep. We also use hat (h) to represent it.
+        n1; % Part of neighbor in skeletonization.
         
         % Partition properties.
         
@@ -33,8 +36,9 @@ classdef HIFGraph < handle
         
         parent; % Parent node.
         children = cell(1,2); % Children nodes.
-        nbNode = {}; % Neighbor nodes. In fact, we don't need this in HIF.
+        nbNode = {}; % Neighbor nodes.
         root; % Root node.
+        nbInfo = struct([]); % Neighbor nodes' information when skelling.
         
         % Matrices properties.
         
@@ -47,7 +51,13 @@ classdef HIFGraph < handle
         ANS; % Interaction between nb and sep.
         DI; % The D part of LDL factorization about AII.
         LI; % The L part of LDL factorization about AII.
-        AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}
+        AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
+        Thc; % T mat of ID decomposition. 
+        Dc; % The D part of LDL factorization about Acc.
+        Lc; % The L part of LDL factorization about Acc.
+        AccinvAch; % AccinvAch = Acc^{-1} * Ahc^{T}.
+        AccinvAcn1; % AccinvAcn1 = Acc^{-1} * An1c^{T}.
+        An1n1;
         
         % Vectors properties.
         
@@ -290,6 +300,8 @@ classdef HIFGraph < handle
         for tmplevel = obj.numLevels:-1:1
             % Sparse elimination.
             obj = RecursiveSparseElim(obj,tmplevel);
+            % Skeletonization.
+            obj = RecursiveSkel(obj,tmplevel);
             % Demo the process.
             if obj.demoHIF == 1
                 DemoHIF(obj,tmplevel);
@@ -334,6 +346,76 @@ classdef HIFGraph < handle
         obj.AIIinvAIS = obj.LI'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
         obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS; % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
         obj.AII = [];
+        
+        end
+        
+        function obj = RecursiveSkel(obj,whatlevel)
+        % RecursiveSkel Recursively skeletonization.
+        
+        if obj.level == whatlevel
+            obj = Skel(obj);
+            % obj = NoSkel(obj); % No skeletonization.
+        else
+            for iter = [1,2]
+                obj.children{iter} = RecursiveSkel(obj.children{iter},whatlevel);
+            end
+        end
+        
+        end
+        
+        function obj = Skel(obj)
+        % Skel Skeletonization.
+        
+        for k = 1:length(obj.nbNode)
+            % We do skel according to nbNode.
+            nodek = obj.nbNode{k};
+            mysep  = intersect(obj.sep,nodek.nb);
+            mysep = setdiff(mysep,obj.parent.sep,'sorted');
+            myother = setdiff(obj.sep,mysep,'sorted');
+            mynb = intersect(obj.nb,nodek.sep);
+            mynb = setdiff(mynb,nodek.parent.sep,'sorted');
+            [~,index_mysep] = ismember(mysep,obj.sep);
+            [~,index_other] = ismember(myother,obj.sep);
+            [~,index_mynb] = ismember(mynb,obj.nb);
+            mtx_other_sep = obj.ASS(index_other,index_mysep);
+            [T,p1,p2] = ID(mtx_other_sep,1e-2); % p1:sk, p2:re.
+            % obj.ASS(index_other,p2）= obj.ASS(index_other,p1） * T.
+            obj.sk{k} = mysep(p1);
+            obj.re{k} = mysep(p2);
+            obj.Thc{k} = T;
+            obj.n1{k} = mynb;
+            
+            index_p1 = index_mysep(p1);
+            index_p2 = index_mysep(p2);
+            obj.ASS(index_other,index_p2) = 0; % Asc = 0;
+            % obj.ASS(index_p2,index_other) = 0;
+            tmp1 = obj.ASS(index_p1,index_p1)*T; % tmp1 = Ahh * T.
+            tmp2 = T'*obj.ASS(index_p1,index_p2); % tmp2 = T' * Ahc.
+            obj.ASS(index_p1,index_p2) = obj.ASS(index_p1,index_p2) - tmp1; % Ahc = Ahc - Ahh * T.
+            % obj.ASS(index_p2,index_p1) = obj.ASS(index_p1,index_p2);
+            obj.ASS(index_p2,index_p2) = obj.ASS(index_p2,index_p2) - tmp2' - tmp2 + T'*tmp1; % Acc = Acc - Ahc^{T} * T - T' * Ahc + T' * Ahh * T.
+            obj.ANS(index_mynb,index_p2) = obj.ANS(index_mynb,index_p2) - obj.ANS(index_mynb,index_p1) * T; %An1c = An1c - An1h * T.
+            
+            [obj.Lc,obj.Dc] = ldl(obj.ASS(index_p2,index_p2)); %% Acc = L * D * L'.
+            
+            obj.AccinvAch = obj.Lc\(obj.ASS(index_p1,index_p2)');
+            obj.AccinvAch = obj.Dc\obj.AccinvAch;
+            obj.AccinvAch = obj.Lc'\obj.AccinvAch; % AccinvAch = Acc^{-1} * Ahc^{T}.
+            obj.AccinvAcn1 = obj.Lc\(obj.ANS(index_mynb,index_p2)');
+            obj.AccinvAcn1 = obj.Dc\obj.AccinvAcn1;
+            obj.AccinvAcn1= obj.Lc'\obj.AccinvAcn1; % AccinvAcn1 = Acc^{-1} * An1c^{T}.
+            obj.ASS(index_p1,index_p1) = obj.ASS(index_p1,index_p1) - obj.ASS(index_p1,index_p2)*obj.AccinvAch;
+            obj.ANS(index_mynb,index_p1) = obj.ANS(index_mynb,index_p1) - obj.ANS(index_mynb,index_p2)*obj.AccinvAch;
+            obj.An1n1{k} = -obj.ANS(index_mynb,index_p2)*obj.AccinvAcn1;
+            
+        end
+        
+        end
+
+        function obj = NoSkel(obj)
+        % NoSkel No skeletonization.
+        
+        % TODO:Write NoSkel.
         
         end
         

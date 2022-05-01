@@ -41,7 +41,7 @@ disp('Relative error:')
 disp(norm(HIF.solution - x)/norm(x))
 
 %% 2D example
-[A,xy] = grid5(16);
+[A,xy] = grid5(8);
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;
@@ -54,11 +54,11 @@ HIF = SetNbNode(HIF);
 % DemoFinalPart(HIF);
 HIF = FillTree(HIF);
 HIF = Factorization(HIF,0);
-x = rand(size(A,1),1);
-b = A*x;
-HIF = HIFSolve(HIF,b);
-disp('Relative error:')
-disp(norm(HIF.solution - x)/norm(x))
+% x = rand(size(A,1),1);
+% b = A*x;
+% HIF = HIFSolve(HIF,b);
+% disp('Relative error:')
+% disp(norm(HIF.solution - x)/norm(x))
 
 %% 3D example.
 [A,xy] = grid3d(8);
