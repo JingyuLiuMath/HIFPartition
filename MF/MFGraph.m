@@ -564,10 +564,12 @@ classdef MFGraph < handle
         function obj = ApplySparseElimUp(obj)
         %ApplySparseElimUp Phase 1 for applying sparse elimination.
         
+        % xS = xS - (AII^{-1} * ASI^{T})^{T} * xI.
         obj.xS = obj.xS - obj.AIIinvAIS'*obj.xI;
+        % xI = LI^{-1} * xI.
         obj.xI = obj.LI\obj.xI;
         
-        % We only apply D once.
+        % xI = DI^{-1} * xI. We only apply D once. 
         obj.xI = obj.DI\obj.xI;
         
         end
@@ -696,6 +698,7 @@ classdef MFGraph < handle
         function obj = ApplySparseElimDown(obj)
         % ApplySparseElimDown Phase 2 for applying sparse elimination.
         
+        % xI = LI^{-T} * xI - (AII^{-1} * ASI^{T})^{T} * xS.
         obj.xI = obj.LI'\obj.xI - obj.AIIinvAIS*obj.xS;
         
         end
