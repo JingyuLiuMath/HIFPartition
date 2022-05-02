@@ -357,7 +357,7 @@ classdef MFGraph < handle
         
         % First we tell the parent what its int is after we eliminate
         % the children's vtx.
-        % int: children's sep - sep
+        % int: children's sep - sep.
         
         for iter = [1,2]
             obj.int = [obj.int,obj.children{iter}.sep];
@@ -499,7 +499,7 @@ classdef MFGraph < handle
         obj = BuildVecTree(obj,b);
         
         for tmplevel = obj.numLevels:-1:1
-            obj = RecursiveApplyUp(obj,tmplevel);
+            obj = RecursiveApplySparseElimUp(obj,tmplevel);
             obj = RecursiveApplyMerge(obj,tmplevel-1);
         end
         
@@ -507,7 +507,7 @@ classdef MFGraph < handle
         
         for tmplevel = 1:1:obj.numLevels
             obj = RecursiveApplySplit(obj,tmplevel-1);
-            obj = RecursiveApplyDown(obj,tmplevel);
+            obj = RecursiveApplySparseElimDown(obj,tmplevel);
         end
         
         obj = GetSolution(obj);
@@ -545,21 +545,21 @@ classdef MFGraph < handle
         
         end
         
-        function obj = RecursiveApplyUp(obj,whatlevel)
-        % RecursiveApplyUp Phase 1 for applying MF recusively.
+        function obj = RecursiveApplySparseElimUp(obj,whatlevel)
+        % RecursiveApplySparseElimUp Phase 1 for applying sparse elimination recusively.
         
         if obj.level == whatlevel
-            obj = ApplyUp(obj);
+            obj = ApplySparseElimUp(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveApplyUp(obj.children{iter}, whatlevel);
+                obj.children{iter} = RecursiveApplySparseElimUp(obj.children{iter}, whatlevel);
             end
         end
         
         end
         
-        function obj = ApplyUp(obj)
-        %ApplyUp Phase 1 for applying MF
+        function obj = ApplySparseElimUp(obj)
+        %ApplySparseElimUp Phase 1 for applying sparse elimination.
         
         obj.xS = obj.xS - obj.AIIinvAIS'*obj.xI;
         obj.xI = obj.LI\obj.xI;
@@ -677,21 +677,21 @@ classdef MFGraph < handle
         
         end
         
-        function obj = RecursiveApplyDown(obj,whatlevel)
-        % RecursiveApplyDown Phase 2 for applying MF recursively.
+        function obj = RecursiveApplySparseElimDown(obj,whatlevel)
+        % RecursiveApplySparseElimDown Phase 2 for applying sparse elimination recursively.
         
         if obj.level == whatlevel
-            obj = ApplyDown(obj);
+            obj = ApplySparseElimDown(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveApplyDown(obj.children{iter}, whatlevel);
+                obj.children{iter} = RecursiveApplySparseElimDown(obj.children{iter}, whatlevel);
             end
         end
         
         end
         
-        function obj = ApplyDown(obj)
-        % ApplyDown Phase 2 for applying MF.
+        function obj = ApplySparseElimDown(obj)
+        % ApplySparseElimDown Phase 2 for applying sparse elimination.
         
         obj.xI = obj.LI'\obj.xI - obj.AIIinvAIS*obj.xS;
         
