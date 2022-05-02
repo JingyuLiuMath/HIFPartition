@@ -328,7 +328,7 @@ classdef MFGraph < handle
         % SparseElim Sparse elimination.
         
         obj.root.active(obj.int) = 0;
-        % AII = L * D * L'.
+        % AII = LI * DI * LI'.
         [obj.LI,obj.DI] = ldl(obj.AII);
         % AIIinvAIS = AII^{-1} * ASI^{T}.
         obj.AIIinvAIS = obj.LI\(obj.ASI');
