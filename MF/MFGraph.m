@@ -328,11 +328,14 @@ classdef MFGraph < handle
         % SparseElim Sparse elimination.
         
         obj.root.active(obj.int) = 0;
-        [obj.LI,obj.DI] = ldl(obj.AII); %% AII = L * D * L'.
+        % AII = L * D * L'.
+        [obj.LI,obj.DI] = ldl(obj.AII);
+        % AIIinvAIS = AII^{-1} * ASI^{T}.
         obj.AIIinvAIS = obj.LI\(obj.ASI');
         obj.AIIinvAIS = obj.DI\obj.AIIinvAIS;
-        obj.AIIinvAIS = obj.LI'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
-        obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS; % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
+        obj.AIIinvAIS = obj.LI'\obj.AIIinvAIS;
+        % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
+        obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS;
         obj.AII = [];
         
         end
