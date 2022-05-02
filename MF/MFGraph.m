@@ -555,7 +555,7 @@ classdef MFGraph < handle
             obj = ApplySparseElimUp(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveApplySparseElimUp(obj.children{iter}, whatlevel);
+                obj.children{iter} = RecursiveApplySparseElimUp(obj.children{iter},whatlevel);
             end
         end
         
@@ -687,7 +687,7 @@ classdef MFGraph < handle
             obj = ApplySparseElimDown(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveApplySparseElimDown(obj.children{iter}, whatlevel);
+                obj.children{iter} = RecursiveApplySparseElimDown(obj.children{iter},whatlevel);
             end
         end
         
