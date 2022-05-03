@@ -733,12 +733,12 @@ classdef MFGraph < handle
         end
         
         if obj.endFlag == 0
-            obj.root.solution(obj.int) = obj.xI;
             for iter = [1,2]
                 obj.children{iter} = GetSolution(obj.children{iter});
             end
         else
             obj.root.solution(obj.int) = obj.xI;
+            obj.root.solution(obj.sep) = obj.xS;
         end
         
         end
