@@ -79,3 +79,23 @@ b = A*x;
 MF = MFSolve(MF,b);
 disp('Relative error:')
 disp(norm(MF.solution - x)/norm(x))
+
+%% Triangular example
+[A,xy] = gridt(32);
+A = full(A);
+Axy.A = A;
+Axy.xy = xy;
+% Axy.xy = [];
+
+MF = MFGraph(Axy);
+MF = BuildTree(MF);
+MF = SetNbNode(MF);
+% DemoPart(MF)
+% DemoFinalPart(MF);
+MF = FillTree(MF);
+MF = Factorization(MF,1);
+x = rand(size(A,1),1);
+b = A*x;
+MF = MFSolve(MF,b);
+disp('Relative error:')
+disp(norm(MF.solution - x)/norm(x))

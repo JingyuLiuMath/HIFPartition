@@ -233,7 +233,10 @@ classdef MFGraph < handle
                     % chilren is in the nb of obj_child.
                     for it = [1,2]
                         nbNodei_child = nbNodei.children{it};
-                        if ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
+                        if isempty(nbNodei_child)
+                            continue;
+                        end
+                        if ~isempty(intersect(obj_child.nb,nbNodei_child.vtx))
                             obj_child.nbNode{end+1} = nbNodei_child;
                         end
                     end
@@ -318,7 +321,9 @@ classdef MFGraph < handle
             obj = SparseElim(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveSparseElim(obj.children{iter},whatlevel);
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveSparseElim(obj.children{iter},whatlevel);
+                end
             end
         end
         
@@ -358,9 +363,14 @@ classdef MFGraph < handle
         
         % We stand on the parent level.
         
+        if obj.endFlag == 1
+            return;
+        end
+        
         % First we tell the parent what its int is after we eliminate
         % the children's vtx.
         % int: children's sep - sep.
+        
         
         for iter = [1,2]
             obj.int = [obj.int,obj.children{iter}.sep];
@@ -555,7 +565,9 @@ classdef MFGraph < handle
             obj = ApplySparseElimUp(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveApplySparseElimUp(obj.children{iter},whatlevel);
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveApplySparseElimUp(obj.children{iter},whatlevel);
+                end
             end
         end
         
@@ -589,8 +601,12 @@ classdef MFGraph < handle
         
         function obj = ApplyMerge(obj)
         % ApplyMerge Send vectors' information from children to parent.
-        
+                
         % We stand on the parent level.
+        
+        if obj.endFlag == 1
+            return;
+        end
         
         % We have specified the parent's int. So we only to assign the
         % corresponding vectors.
@@ -654,6 +670,10 @@ classdef MFGraph < handle
         
         % We stand on the parent level.
         
+        if obj.endFlag == 1
+            return;
+        end
+        
         % We only need to assign the corresponding vectors of the children.
         
         % xI
@@ -689,7 +709,9 @@ classdef MFGraph < handle
             obj = ApplySparseElimDown(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveApplySparseElimDown(obj.children{iter},whatlevel);
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveApplySparseElimDown(obj.children{iter},whatlevel);
+                end
             end
         end
         
@@ -772,7 +794,9 @@ classdef MFGraph < handle
             return;
         else
             for iter = [1,2]
-                map = GetPartMap(obj.children{iter},whatlevel,map);
+                if ~isempty(obj.children{iter})
+                    map = GetPartMap(obj.children{iter},whatlevel,map);
+                end
             end
         end
         
