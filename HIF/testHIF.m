@@ -30,7 +30,7 @@ Axy.xy = xy;
 
 HIF = HIFGraph(Axy);
 HIF = BuildTree(HIF);
-DemoFinalPart(HIF);
+% DemoFinalPart(HIF);
 HIF = SetNbNode(HIF);
 HIF = FillTree(HIF);
 HIF = Factorization(HIF);
@@ -53,12 +53,12 @@ HIF = SetNbNode(HIF);
 % DemoPart(HIF)
 % DemoFinalPart(HIF);
 HIF = FillTree(HIF);
-HIF = Factorization(HIF,0);
-% x = rand(size(A,1),1);
-% b = A*x;
-% HIF = HIFSolve(HIF,b);
-% disp('Relative error:')
-% disp(norm(HIF.solution - x)/norm(x))
+HIF = Factorization(HIF,0.01,0);
+x = rand(size(A,1),1);
+b = A*x;
+HIF = HIFSolve(HIF,b);
+disp('Relative error:')
+disp(norm(HIF.solution - x)/norm(x))
 
 %% 3D example.
 [A,xy] = grid3d(8);
@@ -73,7 +73,27 @@ HIF = SetNbNode(HIF);
 % DemoPart(HIF)
 % DemoFinalPart(HIF);
 HIF = FillTree(HIF);
-HIF = Factorization(HIF,1);
+HIF = Factorization(HIF,0.01,0);
+x = rand(size(A,1),1);
+b = A*x;
+HIF = HIFSolve(HIF,b);
+disp('Relative error:')
+disp(norm(HIF.solution - x)/norm(x))
+
+%% Triangular example
+[A,xy] = gridt(32);
+A = full(A);
+Axy.A = A;
+Axy.xy = xy;
+% Axy.xy = [];
+
+HIF = HIFGraph(Axy);
+HIF = BuildTree(HIF);
+HIF = SetNbNode(HIF);
+% DemoPart(HIF)
+% DemoFinalPart(HIF);
+HIF = FillTree(HIF);
+HIF = Factorization(HIF,0.01,0);
 x = rand(size(A,1),1);
 b = A*x;
 HIF = HIFSolve(HIF,b);

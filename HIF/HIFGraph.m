@@ -23,7 +23,7 @@ classdef HIFGraph < handle
         nbA; % Adjacency matrix of sep (row) and nb (col).
         re; % Redundant sep. We also use check (c) to reprsent it.
         sk; % Skeleton sep. We also use hat (h) to represent it.
-        n1; % Part of neighbor in skeletonization.
+        nbre; % Redundant neighbor.
         
         % Partition properties.
         
@@ -55,9 +55,6 @@ classdef HIFGraph < handle
         Thc; % T mat of ID decomposition. 
         Dc; % The D part of LDL factorization about Acc.
         Lc; % The L part of LDL factorization about Acc.
-        AccinvAch; % AccinvAch = Acc^{-1} * Ahc^{T}.
-        AccinvAcn1; % AccinvAcn1 = Acc^{-1} * An1c^{T}.
-        An1n1;
         
         % Vectors properties.
         
@@ -243,6 +240,9 @@ classdef HIFGraph < handle
                     % chilren is in the nb of obj_child.
                     for it = [1,2]
                         nbNodei_child = nbNodei.children{it};
+                        if isempty(nbNodei_child)
+                            continue;
+                        end
                         if ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
                             obj_child.nbNode{end+1} = nbNodei_child;
                         end
@@ -286,10 +286,14 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = Factorization(obj,demoHIF)
+        function obj = Factorization(obj,tol,demoHIF)
         % Factorization HIF factorization.
         
-        if nargin > 1
+        if nargin == 1
+            tol = 1e-2;
+        end
+        
+        if nargin > 2
             obj.demoHIF = demoHIF;
         end
         
@@ -301,7 +305,7 @@ classdef HIFGraph < handle
             % Sparse elimination.
             obj = RecursiveSparseElim(obj,tmplevel);
             % Skeletonization.
-            obj = RecursiveSkel(obj,tmplevel);
+            obj = RecursiveSkel(obj,tmplevel,tol);
             % Demo the process.
             if obj.demoHIF == 1
                 DemoHIF(obj,tmplevel);
@@ -330,7 +334,9 @@ classdef HIFGraph < handle
             obj = SparseElim(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveSparseElim(obj.children{iter},whatlevel);
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveSparseElim(obj.children{iter},whatlevel);
+                end
             end
         end
         
@@ -340,82 +346,243 @@ classdef HIFGraph < handle
         % SparseElim Sparse elimination.
         
         obj.root.active(obj.int) = 0;
-        [obj.LI,obj.DI] = ldl(obj.AII); %% AII = L * D * L'.
+        % AII = LI * DI * LI^{T}.
+        [obj.LI,obj.DI] = ldl(obj.AII);
+        % AIIinvAIS = AII^{-1} * ASI^{T}.
         obj.AIIinvAIS = obj.LI\(obj.ASI');
         obj.AIIinvAIS = obj.DI\obj.AIIinvAIS;
-        obj.AIIinvAIS = obj.LI'\obj.AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
-        obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS; % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
+        obj.AIIinvAIS = obj.LI'\obj.AIIinvAIS;
+        % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
+        obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS;
         obj.AII = [];
         
         end
         
-        function obj = RecursiveSkel(obj,whatlevel)
+        function obj = RecursiveSkel(obj,whatlevel,tol)
         % RecursiveSkel Recursively skeletonization.
         
         if obj.level == whatlevel
-            obj = Skel(obj);
+            obj = Skel(obj,tol);
             % obj = NoSkel(obj); % No skeletonization.
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveSkel(obj.children{iter},whatlevel);
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveSkel(obj.children{iter},whatlevel,tol);
+                end
             end
         end
         
         end
         
-        function obj = Skel(obj)
+        function obj = Skel(obj,tol)
         % Skel Skeletonization.
         
         for k = 1:length(obj.nbNode)
             % We do skel according to nbNode.
             nodek = obj.nbNode{k};
+            if nodek.seqNum < obj.seqNum
+                obj.nbInfo(k).empty = 1;
+                continue;
+            end
+            
+            % The following data are vertices.
             mysep  = intersect(obj.sep,nodek.nb);
-            mysep = setdiff(mysep,obj.parent.sep,'sorted');
-            myother = setdiff(obj.sep,mysep,'sorted');
+            for i = 1:length(mysep)
+                mysepi = mysep(i);
+                interact_mysepi = find(obj.root.inputAxy.A(:,mysepi) ~= 0);
+                interact_mysepi = setdiff(interact_mysepi,obj.vtx);
+                interact_mysepi = setdiff(interact_mysepi,nodek.sep);
+                if ~isempty(interact_mysepi)
+                    mysep(i) = 0;
+                end
+            end
+            mysep = mysep(mysep > 0);
+            s1 = setdiff(obj.sep,mysep,'sorted');
+            if isempty(mysep) || isempty(s1)
+                obj.nbInfo(k).empty = 1;
+                continue;
+            end
+            obj.nbInfo(k).empty = 0;
+            obj.nbInfo(k).mysep = mysep;
+            obj.nbInfo(k).s1 = s1;
             mynb = intersect(obj.nb,nodek.sep);
-            mynb = setdiff(mynb,nodek.parent.sep,'sorted');
-            [~,index_mysep] = ismember(mysep,obj.sep);
-            [~,index_other] = ismember(myother,obj.sep);
-            [~,index_mynb] = ismember(mynb,obj.nb);
-            mtx_other_sep = obj.ASS(index_other,index_mysep);
-            [T,p1,p2] = ID(mtx_other_sep,1e-2); % p1:sk, p2:re.
-            % obj.ASS(index_other,p2）= obj.ASS(index_other,p1） * T.
-            obj.sk{k} = mysep(p1);
-            obj.re{k} = mysep(p2);
-            obj.Thc{k} = T;
-            obj.n1{k} = mynb;
+            for i = 1:length(mynb)
+                mynbi = mynb(i);
+                interact_mynbi = find(obj.root.inputAxy.A(:,mynbi) ~= 0);
+                interact_mynbi = setdiff(interact_mynbi,obj.vtx);
+                interact_mynbi = setdiff(interact_mynbi,nodek.vtx);
+                if ~isempty(interact_mynbi)
+                    mynb(i) = 0;
+                end
+            end
+            mynb = mynb(mynb > 0);
+            s2 = setdiff(nodek.sep,mynb,'sorted');
+            obj.nbInfo(k).mynb = mynb;
+            obj.nbInfo(k).s2 = s2;
             
-            index_p1 = index_mysep(p1);
-            index_p2 = index_mysep(p2);
-            obj.ASS(index_other,index_p2) = 0; % Asc = 0;
-            % obj.ASS(index_p2,index_other) = 0;
-            tmp1 = obj.ASS(index_p1,index_p1)*T; % tmp1 = Ahh * T.
-            tmp2 = T'*obj.ASS(index_p1,index_p2); % tmp2 = T' * Ahc.
-            obj.ASS(index_p1,index_p2) = obj.ASS(index_p1,index_p2) - tmp1; % Ahc = Ahc - Ahh * T.
-            % obj.ASS(index_p2,index_p1) = obj.ASS(index_p1,index_p2);
-            obj.ASS(index_p2,index_p2) = obj.ASS(index_p2,index_p2) - tmp2' - tmp2 + T'*tmp1; % Acc = Acc - Ahc^{T} * T - T' * Ahc + T' * Ahh * T.
-            obj.ANS(index_mynb,index_p2) = obj.ANS(index_mynb,index_p2) - obj.ANS(index_mynb,index_p1) * T; %An1c = An1c - An1h * T.
             
-            [obj.Lc,obj.Dc] = ldl(obj.ASS(index_p2,index_p2)); %% Acc = L * D * L'.
+            % The following data are indices.
+            [~,myindex_mysep] = ismember(mysep,obj.sep);
+            [~,myindex_s1] = ismember(s1,obj.sep);
+            [~,myindex_mynb] = ismember(mynb,obj.nb);
+            [~,nodekindex_mynb] = ismember(mynb,nodek.sep);
+            [~,nodekindex_s2] = ismember(s2,nodek.sep);
+            [~,nodekindex_mysep] = ismember(mysep,nodek.nb);
+            % obj.nbInfo(k).myindex_mysep = myindex_mysep;
+            % obj.nbInfo(k).myindex_s1 = myindex_s1;
+            % obj.nbInfo(k).myindex_mynb = myindex_mynb;
+            % obj.nbInfo(k).nodekindex_mynb = nodekindex_mynb;
+            % obj.nbInfo(k).nodekindex_s2 = nodekindex_s2;
+            % obj.nbInfo(k).nodekindex_mysep = nodekindex_mysep;
             
-            obj.AccinvAch = obj.Lc\(obj.ASS(index_p1,index_p2)');
-            obj.AccinvAch = obj.Dc\obj.AccinvAch;
-            obj.AccinvAch = obj.Lc'\obj.AccinvAch; % AccinvAch = Acc^{-1} * Ahc^{T}.
-            obj.AccinvAcn1 = obj.Lc\(obj.ANS(index_mynb,index_p2)');
-            obj.AccinvAcn1 = obj.Dc\obj.AccinvAcn1;
-            obj.AccinvAcn1= obj.Lc'\obj.AccinvAcn1; % AccinvAcn1 = Acc^{-1} * An1c^{T}.
-            obj.ASS(index_p1,index_p1) = obj.ASS(index_p1,index_p1) - obj.ASS(index_p1,index_p2)*obj.AccinvAch;
-            obj.ANS(index_mynb,index_p1) = obj.ANS(index_mynb,index_p1) - obj.ANS(index_mynb,index_p2)*obj.AccinvAch;
-            obj.An1n1{k} = -obj.ANS(index_mynb,index_p2)*obj.AccinvAcn1;
+            % ID decomposition.
             
+            % In the following process, the first "1" or "2" denotes my or
+            % nodek, the second "1" or "2" denotes sk or re.
+            % myASS(myindex_s1,myindex_p12) = myASS(myindex_s1,p11) * T1.
+            skelmtx1 = obj.ASS(myindex_s1,myindex_mysep);
+            [T1,p11,p12] = ID(skelmtx1,tol); % skelmtx1(:,p12) = skelmtx1(:,p11) * T1.
+            myindex_p11 = myindex_mysep(p11);
+            myindex_p12 = myindex_mysep(p12);
+            nodekindex_p11 = nodekindex_mysep(p11);
+            nodekindex_p12 = nodekindex_mysep(p12);
+            obj.nbInfo(k).myindex_p11 = myindex_p11;
+            obj.nbInfo(k).myindex_p12 = myindex_p12;
+            obj.nbInfo(k).nodekindex_p11 = nodekindex_p11;
+            obj.nbInfo(k).nodekindex_p12 = nodekindex_p12;
+            % obj.nbInfo(k).mysk = mysep(p11);
+            % obj.nbInfo(k).myre = mysep(p12);
+            obj.re = [obj.re,mysep(p12)];
+            obj.nbInfo(k).Th1c1 = T1;
+            nodek.nbre = [nodek.nbre,mysep(p12)];
+            
+            % nodekASS(nodekindex_s2,nodekindex_p22) = nodekASS(nodekindex_s2,nodekindex_p21) * T2. 
+            skelmtx2 = nodek.ASS(nodekindex_s2,nodekindex_mynb);
+            [T2,p21,p22] = ID(skelmtx2,tol); % skelmtx2(:,p22) = skelmtx1(:,p21) * T2.  
+            myindex_p21 = myindex_mynb(p21);
+            myindex_p22 = myindex_mynb(p22);
+            nodekindex_p21 = nodekindex_mynb(p21);
+            nodekindex_p22 = nodekindex_mynb(p22);
+            obj.nbInfo(k).myindex_p21 = myindex_p21;
+            obj.nbInfo(k).myindex_p22 = myindex_p22;
+            obj.nbInfo(k).nodekindex_p21 = nodekindex_p21;
+            obj.nbInfo(k).nodekindex_p22 = nodekindex_p22;
+            % obj.nbInfo(k).nodeksk = mynb(p21);
+            % obj.nbInfo(k).nodekre = mynb(p22);
+            nodek.re = [nodek.re,mynb(p22)];
+            obj.nbInfo(k).Th2c2 = T2;
+            obj.nbre = [obj.nbre,mynb(p22)];
+            
+            % Step 1
+            Ac1h1T1 = obj.ASS(myindex_p11,myindex_p12)'*T1;
+            Ah1h1T1 = obj.ASS(myindex_p11,myindex_p11)*T1;
+            Ac2h2T2 = nodek.ASS(nodekindex_p21,nodekindex_p22)'*T2;
+            Ah2h2T2 = nodek.ASS(nodekindex_p21,nodekindex_p21)*T2;
+            % Ac1c1 = Ac1c1 - Ah1c1^{T} * Th1c1 - Th1c1^{T} * Ah1c1 + Th1c1^{T} * Ah1h1 * Th1c1.  
+            obj.ASS(myindex_p12,myindex_p12) = obj.ASS(myindex_p12,myindex_p12) - Ac1h1T1 - Ac1h1T1' + T1'*Ah1h1T1;
+            % Ah1c1 = Ah1c1 - Ah1h1 * Th1c1.
+            obj.ASS(myindex_p11,myindex_p12) = obj.ASS(myindex_p11,myindex_p12) - Ah1h1T1;
+            obj.ASS(myindex_p12,myindex_p11) = obj.ASS(myindex_p11,myindex_p12)';
+            % Ac2c1 = Ac2c1 - Ac2h1 * Th1c1 - Th2c2^{T} * Ah2c1 + Th2c2^{T} * Ah2h1 * Th1c1.
+            obj.ANS(myindex_p22,myindex_p12) = obj.ANS(myindex_p22,myindex_p12) - obj.ANS(myindex_p22,myindex_p11)*T1 - ...
+                T2'*obj.ANS(myindex_p21,myindex_p12) + T2'*obj.ANS(myindex_p21,myindex_p11)*T1;
+            nodek.ANS(nodekindex_p12,nodekindex_p22) = obj.ANS(myindex_p22,myindex_p12)';
+            % Ah2c1 = Ah2c1 - Ah2h1 * Th1c1.
+            obj.ANS(myindex_p21,myindex_p12) = obj.ANS(myindex_p21,myindex_p12) - obj.ANS(myindex_p21,myindex_p11)*T1;
+            nodek.ANS(nodekindex_p12,nodekindex_p21) = obj.ANS(myindex_p21,myindex_p12)';
+            % Ac2c2 = Ac2c2 - Ah2c2^{T} * Th2c2 - Th2c2^{T} * Ah2c2 + sTh2c2^{T} * Ah2h2 * Th2c2.
+            nodek.ASS(nodekindex_p22,nodekindex_p22) = nodek.ASS(nodekindex_p22,nodekindex_p22) - Ac2h2T2 - Ac2h2T2' + T2'*Ah2h2T2;
+            % Ah2c2 = Ah2c2 - Ah2h2 * Th2c2.
+            nodek.ASS(nodekindex_p21,nodekindex_p22) = nodek.ASS(nodekindex_p21,nodekindex_p22) - Ah2h2T2;
+            nodek.ASS(nodekindex_p22,nodekindex_p21) = nodek.ASS(nodekindex_p21,nodekindex_p22)';
+            % Ac2h1 = Ac2h1 - Th2c2^{T} * Ah2h1.
+            obj.ANS(myindex_p22,myindex_p11) = obj.ANS(myindex_p22,myindex_p11) - T2'*obj.ANS(myindex_p21,myindex_p11);
+            nodek.ANS(nodekindex_p11,nodekindex_p22) = obj.ANS(myindex_p22,myindex_p11)';
+            % As1c1 = 0, As2c2 = 0.
+            obj.ASS(myindex_s1,myindex_p12) = 0;
+            obj.ASS(myindex_p12,myindex_s1) = 0;
+            nodek.ASS(nodekindex_s2,nodekindex_p22) = 0;
+            nodek.ASS(nodekindex_p22,nodekindex_s2) = 0;
+            
+            % Step 2
+            % Ac1c1 = Lc1 * Dc1 * Lc1^{T}.
+            [L1,D1] = ldl(obj.ASS(myindex_p12,myindex_p12));
+            obj.root.active(mysep(p12)) = 0;
+            obj.nbInfo(k).Lc1 = L1;
+            obj.nbInfo(k).Dc1 = D1;
+            % Ac1c1invAc1h1 = Ac1c1^{-1} * Ah1c1^{T}.
+            obj.nbInfo(k).Ac1c1invAc1h1 = L1\(obj.ASS(myindex_p11,myindex_p12)');
+            obj.nbInfo(k).Ac1c1invAc1h1 = D1\obj.nbInfo(k).Ac1c1invAc1h1;
+            obj.nbInfo(k).Ac1c1invAc1h1 = L1'\obj.nbInfo(k).Ac1c1invAc1h1;
+            % Ac1c1invAc1c2 = Ac1c1^{-1} * Ac2c1^{T}.
+            obj.nbInfo(k).Ac1c1invAc1c2 = L1\(obj.ANS(myindex_p22,myindex_p12)');
+            obj.nbInfo(k).Ac1c1invAc1c2 = D1\obj.nbInfo(k).Ac1c1invAc1c2;
+            obj.nbInfo(k).Ac1c1invAc1c2 = L1'\obj.nbInfo(k).Ac1c1invAc1c2;
+            % Ac1c1invAc1h2 = Ac1c1^{-1} * Ah2c1^{T}.
+            obj.nbInfo(k).Ac1c1invAc1h2 = L1\(obj.ANS(myindex_p21,myindex_p12)');
+            obj.nbInfo(k).Ac1c1invAc1h2 = D1\obj.nbInfo(k).Ac1c1invAc1h2;
+            obj.nbInfo(k).Ac1c1invAc1h2 = L1'\obj.nbInfo(k).Ac1c1invAc1h2;
+            % Ah1h1 = Ah1h1 - Ah1c1 * Ac1c1^{-1} * Ah1c1^{T}.
+            obj.ASS(myindex_p11,myindex_p11) = obj.ASS(myindex_p11,myindex_p11) - obj.ASS(myindex_p11,myindex_p12)*obj.nbInfo(k).Ac1c1invAc1h1;
+            % Ac2h1 = Ac2h1 - Ac2c1 * Ac1c1^{-1} * Ah1c1^{T}.
+            obj.ANS(myindex_p22,myindex_p11) = obj.ANS(myindex_p22,myindex_p11) - obj.ANS(myindex_p22,myindex_p12)*obj.nbInfo(k).Ac1c1invAc1h1;
+            nodek.ANS(nodekindex_p11,nodekindex_p22) = obj.ANS(myindex_p22,myindex_p11)';
+            % Ah2h1 = Ah2h1 - Ah2c1 * Ac1c1^{-1} * Ah1c1^{T}.
+            obj.ANS(myindex_p21,myindex_p11) = obj.ANS(myindex_p21,myindex_p11) - obj.ANS(myindex_p21,myindex_p12)*obj.nbInfo(k).Ac1c1invAc1h1;
+            nodek.ANS(nodekindex_p11,nodekindex_p21) = obj.ANS(myindex_p21,myindex_p11)';
+            % Ac2c2 = Ac2c2 - Ac2c1 * Ac1c1^{-1} * Ac2c1^{T}.
+            nodek.ASS(nodekindex_p22,nodekindex_p22) = nodek.ASS(nodekindex_p22,nodekindex_p22) - obj.ANS(myindex_p22,myindex_p12)*obj.nbInfo(k).Ac1c1invAc1c2;
+            % Ah2c2 = Ah2c2 - Ah2c1 * Ac1c1^{-1} * Ac2c1^{T}.
+            nodek.ASS(nodekindex_p21,nodekindex_p22) = nodek.ASS(nodekindex_p21,nodekindex_p22) - obj.ANS(myindex_p21,myindex_p12)*obj.nbInfo(k).Ac1c1invAc1c2;
+            nodek.ASS(nodekindex_p22,nodekindex_p21) = nodek.ASS(nodekindex_p21,nodekindex_p22)';
+            % Ah2h2 = Ah2h2 - Ah2c1 * Ac1c1^{-1} * Ah2c1^{T}.
+            nodek.ASS(nodekindex_p21,nodekindex_p21) = nodek.ASS(nodekindex_p21,nodekindex_p21) - obj.ANS(myindex_p21,myindex_p12)*obj.nbInfo(k).Ac1c1invAc1h2;
+            % Ah1c1 = 0, Ac2c1 = 0, Ah2c1 = 0 
+            obj.ASS(myindex_p11,myindex_p12) = 0;
+            obj.ASS(myindex_p12,myindex_p11) = 0;
+            obj.ANS(myindex_p22,myindex_p12) = 0;
+            nodek.ANS(nodekindex_p12,nodekindex_p22) = 0;
+            obj.ANS(myindex_p21,myindex_p12) = 0;
+            nodek.ANS(nodekindex_p12,nodekindex_p21) = 0;
+            
+            % Step 3
+            % Ac2c2 = Lc2 * Dc2 * Lc2^{T};
+            [L2,D2] = ldl(nodek.ASS(nodekindex_p22,nodekindex_p22));
+            obj.root.active(mynb(p22)) = 0;
+            obj.nbInfo(k).Lc2 = L2;
+            obj.nbInfo(k).Dc2 = D2;
+            % Ac2c2invAc2h1 = Ac2c2^{-1} * Ac2h1.
+            obj.nbInfo(k).Ac2c2invAc2h1 = L2\obj.ANS(myindex_p22,myindex_p11);
+            obj.nbInfo(k).Ac2c2invAc2h1 = D2\obj.nbInfo(k).Ac2c2invAc2h1;
+            obj.nbInfo(k).Ac2c2invAc2h1 = L2'\obj.nbInfo(k).Ac2c2invAc2h1;
+            % Ac2c2invAc2h2 = Ac2c2^{-1} * Ah2c2^{T}.
+            obj.nbInfo(k).Ac2c2invAc2h2 = L2\(nodek.ASS(nodekindex_p21,nodekindex_p22)');
+            obj.nbInfo(k).Ac2c2invAc2h2 = D2\obj.nbInfo(k).Ac2c2invAc2h2;
+            obj.nbInfo(k).Ac2c2invAc2h2 = L2'\obj.nbInfo(k).Ac2c2invAc2h2;
+            % Ah1h1 = Ah1h1 - Ac2h1^{T} * Ac2c2^{-1} * Ac2h1.
+            obj.ASS(myindex_p11,myindex_p11) = obj.ASS(myindex_p11,myindex_p11) - obj.ANS(myindex_p22,myindex_p11)'*obj.nbInfo(k).Ac2c2invAc2h1;
+            % Ah2h1 = Ah2h1 - Ah2c2 * Ac2c2^{-1} * Ac2h1.
+            obj.ANS(myindex_p21,myindex_p11) = obj.ANS(myindex_p21,myindex_p11) - nodek.ASS(nodekindex_p21,nodekindex_p22)*obj.nbInfo(k).Ac2c2invAc2h1;
+            nodek.ANS(nodekindex_p11,nodekindex_p21) = obj.ANS(myindex_p21,myindex_p11)';
+            % Ah2h2 = Ah2h2 - Ah2c2 * Ac2c2^{-1} * Ac2h2.
+            nodek.ASS(nodekindex_p21,nodekindex_p21) = nodek.ASS(nodekindex_p21,nodekindex_p21)- nodek.ASS(nodekindex_p21,nodekindex_p22)*obj.nbInfo(k).Ac2c2invAc2h2;
+            % Ah2c2 = 0, Ac2h1 = 0.
+            nodek.ASS(nodekindex_p21,nodekindex_p22) = 0;
+            nodek.ASS(nodekindex_p22,nodekindex_p21) = 0;
+            obj.ANS(myindex_p22,myindex_p11) = 0;
+            nodek.ANS(nodekindex_p11,nodekindex_p22) = 0;
         end
+        
+        obj.re = sort(obj.re);
+        obj.sk = setdiff(obj.sep,obj.re,'sorted');
+        obj.nbre = sort(obj.nbre);
         
         end
 
         function obj = NoSkel(obj)
         % NoSkel No skeletonization.
         
-        % TODO:Write NoSkel.
+        obj.sk = obj.sep;
         
         end
         
@@ -437,14 +604,27 @@ classdef HIFGraph < handle
         
         % We stand on the parent level.
         
-        % First we tell the parent what its int is after we eliminate
-        % the children's vtx.
-        % int: children's sep - sep
-        
-        for iter = [1,2]
-            obj.int = [obj.int,obj.children{iter}.sep];
+        if obj.endFlag == 1
+            return;
         end
+        
+        % First we tell the parent what its int sep, nb is after we 
+        % eliminate the children's vtx.
+        % int: children's sep - sep - children's re.
+        % sep: sep \cup children's sk. 
+        % nb: childrens'nb - children's nbre.
+        
+        children_sk = [];
+        for iter = [1,2]
+            obj.int = [obj.int,obj.children{iter}.sk];
+            obj.re = [obj.re,obj.children{iter}.re];
+            children_sk = [children_sk,obj.children{iter}.sk];
+            obj.nbre = [obj.nbre,obj.children{iter}.nbre];
+        end
+        obj.nbre = setdiff(obj.nbre,obj.vtx);
         obj.int = setdiff(obj.int,obj.sep,'sorted');
+        obj.sep = intersect(obj.sep,children_sk,'sorted');
+        obj.nb = setdiff(obj.nb,obj.nbre,'sorted');
         
         % Next we assign the corresponding matrices.
         % From child to parent.
@@ -485,7 +665,7 @@ classdef HIFGraph < handle
         % A sep of the parent only belongs to the sep of one of its
         % children. If an int and a sep belongs to the same child, we
         % assign ASI from the child's ASS. Otherwise, we assign ASI from
-        % the int child's ANS or 0.
+        % the child's ANS or 0 whose seqNum is smaller.
         for j = 1:length(obj.int)
             intj = obj.int(j);
             if find(obj.children{1}.vtx == intj)
@@ -512,7 +692,8 @@ classdef HIFGraph < handle
         
         obj.ASS = zeros(length(obj.sep));
         % If two seps belongs to the same child, we assign ASS from the
-        % child's ASS. Otherwise, we assign ASS from one child's ANN or 0.
+        % child's ASS. Otherwise, we assign ASS from the child's ANN or 0 
+        % whose seqNum is smaller.
         for j = 1:length(obj.sep)
             sepj = obj.sep(j);
             if find(obj.children{1}.vtx == sepj)
@@ -529,9 +710,15 @@ classdef HIFGraph < handle
                     if isempty(index_sepi)
                         obj.ASS(i,j) = 0;
                     else
+                        if isempty(obj.children{where_sepj}.ANS(index_sepi,index_sepj))
+                            a = 0;
+                        end
                         obj.ASS(i,j) = obj.children{where_sepj}.ANS(index_sepi,index_sepj);
                     end
                 else
+                    if isempty(obj.children{where_sepj}.ASS(index_sepi,index_sepj))
+                        a = 0;
+                    end
                     obj.ASS(i,j) = obj.children{where_sepj}.ASS(index_sepi,index_sepj);
                 end
             end
@@ -581,7 +768,8 @@ classdef HIFGraph < handle
         obj = BuildVecTree(obj,b);
         
         for tmplevel = obj.numLevels:-1:1
-            obj = RecursiveApplyUp(obj,tmplevel);
+            obj = RecursiveApplySparseElimUp(obj,tmplevel);
+            obj = RecursiveApplySkelUp(obj,tmplevel);
             obj = RecursiveApplyMerge(obj,tmplevel-1);
         end
         
@@ -589,7 +777,8 @@ classdef HIFGraph < handle
         
         for tmplevel = 1:1:obj.numLevels
             obj = RecursiveApplySplit(obj,tmplevel-1);
-            obj = RecursiveApplyDown(obj,tmplevel);
+            obj = RecursiveApplySkelDown(obj,tmplevel);
+            obj = RecursiveApplySparseElimDown(obj,tmplevel);
         end
         
         obj = GetSolution(obj);
@@ -627,27 +816,90 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = RecursiveApplyUp(obj,whatlevel)
-        % RecursiveApplyUp Phase 1 for applying HIF recusively.
+        function obj = RecursiveApplySparseElimUp(obj,whatlevel)
+        % RecursiveApplySparseElimUp Phase 1 for applying sparse elimination recusively.
         
         if obj.level == whatlevel
-            obj = ApplyUp(obj);
+            obj = ApplySparseElimUp(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveApplyUp(obj.children{iter}, whatlevel);
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveApplySparseElimUp(obj.children{iter},whatlevel);
+                end
             end
         end
         
         end
         
-        function obj = ApplyUp(obj)
-        %ApplyUp Phase 1 for applying HIF
+        function obj = ApplySparseElimUp(obj)
+        %ApplySparseElimUp Phase 1 for applying sparse elimination.
         
+        % xS = xS - (AII^{-1} * ASI^{T})^{T} * xI.
         obj.xS = obj.xS - obj.AIIinvAIS'*obj.xI;
+        % xI = LI^{-1} * xI.
         obj.xI = obj.LI\obj.xI;
         
-        % We only apply D once.
+        % xI = DI^{-1} * xI. We only apply D once. 
         obj.xI = obj.DI\obj.xI;
+        
+        end
+        
+        function obj = RecursiveApplySkelUp(obj,whatlevel)
+        % RecursiveApplySkelUp Phase 1 for applying skeletonization recusively.
+        
+        if obj.level == whatlevel
+            obj = ApplySkelUp(obj);
+        else
+            for iter = [1,2]
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveApplySkelUp(obj.children{iter},whatlevel);
+                end
+            end
+        end
+        
+        end
+        
+        function obj = ApplySkelUp(obj)
+        % ApplySkelUp Phase 1 for applying skeletonization.
+        
+        for k = 1:length(obj.nbNode)
+            nbnodek = obj.nbNode{k};
+            if isempty(obj.nbInfo)
+                continue;
+            end
+            nbinfok = obj.nbInfo(k);
+            if nbinfok.empty
+                continue;
+            end
+            
+            % Step 1
+            % xc1 = xc1 - Th1c1^{T} * xh1.
+            obj.xS(nbinfok.myindex_p12) = obj.xS(nbinfok.myindex_p12) - nbinfok.Th1c1'*obj.xS(nbinfok.myindex_p11);
+            % xc2 = xc2 - Th2c2^{T} * xh2.
+            nbnodek.xS(nbinfok.nodekindex_p22) = nbnodek.xS(nbinfok.nodekindex_p22) - nbinfok.Th2c2'*nbnodek.xS(nbinfok.nodekindex_p21);
+            
+            % Step 2
+            % xh1 = xh1 - (Ac1c1^{-1} * Ah1c1^{T})^{T} * xc1.
+            obj.xS(nbinfok.myindex_p11) = obj.xS(nbinfok.myindex_p11) - nbinfok.Ac1c1invAc1h1'*obj.xS(nbinfok.myindex_p12);
+            % xc2 = xc2 - (Ac1c1^{-1} * Ac2c1^{T})^{T} * xc1.
+            nbnodek.xS(nbinfok.nodekindex_p22) = nbnodek.xS(nbinfok.nodekindex_p22) - nbinfok.Ac1c1invAc1c2'*obj.xS(nbinfok.myindex_p12);
+            % xh2 = xh2 - (Ac1c1^{-1} * Ah2c1^{T})^{T} * xc1.
+            nbnodek.xS(nbinfok.nodekindex_p21) = nbnodek.xS(nbinfok.nodekindex_p21) - nbinfok.Ac1c1invAc1h2'*obj.xS(nbinfok.myindex_p12);
+            % xc1 = Lc1^{-1} * xc1.
+            obj.xS(nbinfok.myindex_p12) = nbinfok.Lc1\obj.xS(nbinfok.myindex_p12);
+            
+            % Step 3
+            % xh1 = xh1 - (Ac2c2^{-1} * Ac2h1)^{T} * xc2.
+            obj.xS(nbinfok.myindex_p11) = obj.xS(nbinfok.myindex_p11) - nbinfok.Ac2c2invAc2h1'*nbnodek.xS(nbinfok.nodekindex_p22);
+            % xh2 = xh2 - (Ac2c2^{-1} * Ah2c2^{T})^{T} * xc2.
+            nbnodek.xS(nbinfok.nodekindex_p21) = nbnodek.xS(nbinfok.nodekindex_p21) - nbinfok.Ac2c2invAc2h2'*nbnodek.xS(nbinfok.nodekindex_p22);
+            % xc2 = Lc2^{-1} * xc2.
+            nbnodek.xS(nbinfok.nodekindex_p22) = nbinfok.Lc2\nbnodek.xS(nbinfok.nodekindex_p22);
+            
+            % xc1 = Dc1^{-1} * xc1. xc2 = Dc2^{-1} * xc2. We only apply D once. 
+            obj.xS(nbinfok.myindex_p12) = nbinfok.Dc1\obj.xS(nbinfok.myindex_p12);
+            nbnodek.xS(nbinfok.nodekindex_p22) = nbinfok.Dc2\nbnodek.xS(nbinfok.nodekindex_p22);
+        end
         
         end
         
@@ -668,6 +920,10 @@ classdef HIFGraph < handle
         % ApplyMerge Send vectors' information from children to parent.
         
         % We stand on the parent level.
+        
+        if obj.endFlag == 1
+            return;
+        end
         
         % We have specified the parent's int. So we only to assign the
         % corresponding vectors.
@@ -731,6 +987,10 @@ classdef HIFGraph < handle
         
         % We stand on the parent level.
         
+        if obj.endFlag == 1
+            return;
+        end
+        
         % We only need to assign the corresponding vectors of the children.
         
         % xI
@@ -759,22 +1019,76 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = RecursiveApplyDown(obj,whatlevel)
-        % RecursiveApplyDown Phase 2 for applying HIF recursively.
+        function obj = RecursiveApplySkelDown(obj,whatlevel)
+        % RecursiveApplySkelDown Phase 2 for applying skeletonization recursively.
         
         if obj.level == whatlevel
-            obj = ApplyDown(obj);
+            obj = ApplySkelDown(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveApplyDown(obj.children{iter}, whatlevel);
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveApplySkelDown(obj.children{iter},whatlevel);
+                end
             end
         end
         
         end
         
-        function obj = ApplyDown(obj)
-        % ApplyDown Phase 2 for applying HIF.
+        function obj = ApplySkelDown(obj)
+        % ApplySkelDown Phase 2 for applying skeletonization.
         
+        for k = 1:length(obj.nbNode)
+            nbnodek = obj.nbNode{k};
+            if isempty(obj.nbInfo)
+                continue;
+            end
+            nbinfok = obj.nbInfo(k);
+            if nbinfok.empty
+                continue;
+            end
+            
+            % Step 3
+            % xc2 = Lc2^{-T} * xc2 - (Ac2c2^{-1} * Ac2h1) * xh1 - (Ac2c2^{-1} * Ah2c2^{T}) * xh2.
+            nbnodek.xS(nbinfok.nodekindex_p22) = nbinfok.Lc2'\nbnodek.xS(nbinfok.nodekindex_p22) - ...
+                nbinfok.Ac2c2invAc2h1*obj.xS(nbinfok.myindex_p11) - ...
+                nbinfok.Ac2c2invAc2h2*nbnodek.xS(nbinfok.nodekindex_p21);
+            
+            % Step 2
+            % xc1 = Lc1^{-T} * xc1 - (Ac1c1^{-1} * Ah1c1^{T}) * xh1 - (Ac1c1^{-1} * Ac2c1^{T}) * xc2 - (Ac1c1^{-1} * Ah2c1^{T}) * xh2.
+            obj.xS(nbinfok.myindex_p12) = nbinfok.Lc1'\obj.xS(nbinfok.myindex_p12) - ...
+                nbinfok.Ac1c1invAc1h1*obj.xS(nbinfok.myindex_p11) - ...
+                nbinfok.Ac1c1invAc1c2*nbnodek.xS(nbinfok.nodekindex_p22) - ...
+                nbinfok.Ac1c1invAc1h2*nbnodek.xS(nbinfok.nodekindex_p21);
+            
+            % Step 1
+            % xh1 = xh1 - Th1c1 * xc1.
+            obj.xS(nbinfok.myindex_p11) = obj.xS(nbinfok.myindex_p11) - nbinfok.Th1c1*obj.xS(nbinfok.myindex_p12);
+            % xh2 = xh2 - Th2c2 * xc2.
+            nbnodek.xS(nbinfok.nodekindex_p21) = nbnodek.xS(nbinfok.nodekindex_p21) - nbinfok.Th2c2*nbnodek.xS(nbinfok.nodekindex_p22);
+        end
+        
+        
+        end
+        
+        function obj = RecursiveApplySparseElimDown(obj,whatlevel)
+        % RecursiveApplySparseElimDown Phase 2 for applying sparse elimination recursively.
+        
+        if obj.level == whatlevel
+            obj = ApplySparseElimDown(obj);
+        else
+            for iter = [1,2]
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveApplySparseElimDown(obj.children{iter},whatlevel);
+                end
+            end
+        end
+        
+        end
+        
+        function obj = ApplySparseElimDown(obj)
+        % ApplySparseElimDown Phase 2 for applying sparse elimination.
+        
+        % xI = LI^{-T} * xI - (AII^{-1} * ASI^{T})^{T} * xS.
         obj.xI = obj.LI'\obj.xI - obj.AIIinvAIS*obj.xS;
         
         end
@@ -848,7 +1162,9 @@ classdef HIFGraph < handle
             return;
         else
             for iter = [1,2]
-                map = GetPartMap(obj.children{iter},whatlevel,map);
+                if ~isempty(obj.children{iter})
+                    map = GetPartMap(obj.children{iter},whatlevel,map);
+                end
             end
         end
         
