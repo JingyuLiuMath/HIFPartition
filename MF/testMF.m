@@ -30,10 +30,11 @@ Axy.xy = xy;
 
 MF = MFGraph(Axy);
 MF = BuildTree(MF);
-DemoFinalPart(MF);
+% DemoFinalPart(MF);
 MF = SetNbNode(MF);
 MF = FillTree(MF);
 MF = Factorization(MF);
+
 x = ones(size(A,1),1);
 b = A*x;
 MF = MFSolve(MF,b);
@@ -54,6 +55,7 @@ MF = SetNbNode(MF);
 % DemoFinalPart(MF);
 MF = FillTree(MF);
 MF = Factorization(MF,1);
+
 x = rand(size(A,1),1);
 b = A*x;
 MF = MFSolve(MF,b);
@@ -74,6 +76,7 @@ MF = SetNbNode(MF);
 % DemoFinalPart(MF);
 MF = FillTree(MF);
 MF = Factorization(MF,1);
+
 x = rand(size(A,1),1);
 b = A*x;
 MF = MFSolve(MF,b);
@@ -94,8 +97,21 @@ MF = SetNbNode(MF);
 % DemoFinalPart(MF);
 MF = FillTree(MF);
 MF = Factorization(MF,1);
+
 x = rand(size(A,1),1);
 b = A*x;
 MF = MFSolve(MF,b);
 disp('Relative error:')
 disp(norm(MF.solution - x)/norm(x))
+
+%% Solve Ainv
+Ainv = zeros(size(A));
+for i = 1:size(A,1)
+    ei = zeros(size(A,1),1);
+    ei(i) = 1;
+    MF = MFSolve(MF,ei);
+    Ainv(:,i) = MF.solution;
+end
+dA = Ainv - inv(A);
+disp('Norm(dA):')
+disp(norm(dA))
