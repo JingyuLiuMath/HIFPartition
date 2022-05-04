@@ -1,60 +1,21 @@
-%% A simple example.
-% 1 - 5
-% |   |
-% 2 - 6
-% |   |
-% 3 - 7
-% |   |
-% 4 - 8
-
-A1 = [4,-1,0,0;
-    -1,4,-1,0;
-    0,-1,4,-1;
-    0,0,-1,4];
-A2 = [0,-1;
-    -1,0];
-I2 = eye(2);
-I4 = eye(4);
-A = kron(I2,A1) + kron(A2,I4);
-clear A1 A2 I2 I4;
-xy = [1,4;
-    1,3;
-    1,2;
-    1,1;
-    2,4;
-    2,3;
-    2,2;
-    2,1];
-Axy.A = A;
-Axy.xy = xy;
-
-HIF = HIFGraph(Axy);
-HIF = BuildTree(HIF);
-% DemoFinalPart(HIF);
-HIF = SetNbNode(HIF);
-HIF = FillTree(HIF);
-HIF = Factorization(HIF);
-x = ones(size(A,1),1);
-b = A*x;
-HIF = HIFSolve(HIF,b);
-disp('Relative error:')
-disp(norm(HIF.solution - x)/norm(x))
-
 %% 2D example
-[A,xy] = grid5(8);
+[A,xy] = grid5(16);
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;
-% Axy.xy = []
+
+method = "Specpart";
+% method = "Geopart";
 
 HIF = HIFGraph(Axy);
-HIF = BuildTree(HIF);
+HIF = BuildTree(HIF,method);
 HIF = SetNbNode(HIF);
 % DemoPart(HIF)
-% DemoFinalPart(HIF);
+DemoFinalPart(HIF);
 HIF = FillTree(HIF);
-HIF = Factorization(HIF,0.01,0);
-x = rand(size(A,1),1);
+HIF = Factorization(HIF,1e-3,0);
+
+x = ones(size(A,1),1);
 b = A*x;
 HIF = HIFSolve(HIF,b);
 disp('Relative error:')
@@ -65,15 +26,18 @@ disp(norm(HIF.solution - x)/norm(x))
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;
-% Axy.xy = []
+
+method = "Specpart";
+% method = "Geopart";
 
 HIF = HIFGraph(Axy);
-HIF = BuildTree(HIF);
+HIF = BuildTree(HIF,method);
 HIF = SetNbNode(HIF);
 % DemoPart(HIF)
 % DemoFinalPart(HIF);
 HIF = FillTree(HIF);
-HIF = Factorization(HIF,0.01,0);
+HIF = Factorization(HIF,1e-3,1);
+
 x = rand(size(A,1),1);
 b = A*x;
 HIF = HIFSolve(HIF,b);
@@ -85,17 +49,32 @@ disp(norm(HIF.solution - x)/norm(x))
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;
-% Axy.xy = [];
+
+method = "Specpart";
+% method = "Geopart";
 
 HIF = HIFGraph(Axy);
-HIF = BuildTree(HIF);
+HIF = BuildTree(HIF,method);
 HIF = SetNbNode(HIF);
 % DemoPart(HIF)
-% DemoFinalPart(HIF);
+DemoFinalPart(HIF);
 HIF = FillTree(HIF);
-HIF = Factorization(HIF,0.01,0);
+HIF = Factorization(HIF,1e-3,0);
+
 x = rand(size(A,1),1);
 b = A*x;
 HIF = HIFSolve(HIF,b);
 disp('Relative error:')
 disp(norm(HIF.solution - x)/norm(x))
+
+%% Solve Ainv
+Ainv = zeros(size(A));
+for i = 1:size(A,1)
+    ei = zeros(size(A,1),1);
+    ei(i) = 1;
+    HIF = HIFSolve(HIF,ei);
+    Ainv(:,i) = HIF.solution;
+end
+dA = Ainv - inv(A);
+disp('Norm(dA):')
+disp(norm(dA))
