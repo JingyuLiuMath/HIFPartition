@@ -24,6 +24,7 @@ classdef HIFGraph < handle
         re; % Redundant sep. We also use check (c) to reprsent it.
         sk; % Skeleton sep. We also use hat (h) to represent it.
         nbre; % Redundant neighbor.
+        singlesep; % Sep which only interact with one node.
         
         % Partition properties.
         
@@ -52,9 +53,6 @@ classdef HIFGraph < handle
         DI; % The D part of LDL factorization about AII.
         LI; % The L part of LDL factorization about AII.
         AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
-        Thc; % T mat of ID decomposition.
-        Dc; % The D part of LDL factorization about Acc.
-        Lc; % The L part of LDL factorization about Acc.
         
         % Vectors properties.
         
@@ -287,7 +285,41 @@ classdef HIFGraph < handle
             obj.ASI = rootHIF.inputAxy.A(obj.sep,obj.int);
             obj.ASS = rootHIF.inputAxy.A(obj.sep,obj.sep);
             obj.ANS = rootHIF.inputAxy.A(obj.nb,obj.sep);
+            
+            % Set single sep.
+            obj = SetSingleSep(obj);
         end
+        
+        end
+        
+        function obj = RecursiveSetSingleSep(obj)
+        % RecursiveSetSingleSep Recursively set single sep.
+        
+        obj = SetSingleSep(obj);
+        
+        if obj.endFlag == 1
+            return
+        else
+            for iter = [1,2]
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveSetSingleSep(obj.children{iter});
+                end
+            end
+        end
+        
+        end
+        
+        function obj = SetSingleSep(obj)
+        % SetSingleSep Set sep which interact with only one nbNode.
+       
+        ordersep = zeros(length(obj.sep),1);
+        for k = 1:length(obj.nbNode)
+            nodek = obj.nbNode{k};
+            [~,tmp,~] = intersect(obj.sep,nodek.nb);
+            ordersep(tmp) = ordersep(tmp) + 1; 
+        end
+        
+        obj.singlesep = obj.sep(ordersep == 1);
         
         end
         
@@ -391,47 +423,18 @@ classdef HIFGraph < handle
             end
             
             % The following data are vertices.
-            mysep  = intersect(obj.sep,nodek.nb,'sorted');
-            for i = 1:length(mysep)
-                mysepi = mysep(i);
-                interact_mysepi = find(obj.root.inputAxy.A(:,mysepi) ~= 0);
-                interact_mysepi = setdiff(interact_mysepi,obj.vtx);
-                interact_mysepi = setdiff(interact_mysepi,nodek.sep);
-                if ~isempty(interact_mysepi)
-                    mysep(i) = -mysepi;
-                end
-            end
-            s12 = -mysep(mysep < 0);
-            mysep = mysep(mysep > 0);
+            mysep  = intersect(obj.sep,nodek.nb,'sorted');        
+            s12 = setdiff(mysep,obj.singlesep);
+            mysep = intersect(mysep,obj.singlesep);            
             s11 = setdiff(obj.sep,mysep,'sorted');
             s11 = setdiff(s11,s12,'sorted');
             
-            if isempty(mysep)
-                obj.nbInfo(k).empty = 1;
-                continue;
-            end
-            
-            mynb = intersect(obj.nb,nodek.sep);
-            for i = 1:length(mynb)
-                mynbi = mynb(i);
-                interact_mynbi = find(obj.root.inputAxy.A(:,mynbi) ~= 0);
-                interact_mynbi = setdiff(interact_mynbi,obj.vtx);
-                interact_mynbi = setdiff(interact_mynbi,nodek.vtx);
-                if ~isempty(interact_mynbi)
-                    mynb(i) = -mynbi;
-                end
-            end
-            s21 = -mynb(mynb < 0);
-            mynb = mynb(mynb > 0);
+            mynb = intersect(obj.nb,nodek.sep,'sorted');
+            s21 = setdiff(mynb,nodek.singlesep);
+            mynb = intersect(mynb,nodek.singlesep);
             s22 = setdiff(nodek.sep,mynb,'sorted');
             s22 = setdiff(s22,s21,'sorted');
-            
-            if isempty(mynb)
-                obj.nbInfo(k).empty = 1;
-                continue;
-            end
-            
-            obj.nbInfo(k).empty = 0;
+                        
             %             obj.nbInfo(k).mysep = mysep;
             %             obj.nbInfo(k).s11 = s11;
             %             obj.nbInfo(k).s12 = s12;
@@ -461,6 +464,10 @@ classdef HIFGraph < handle
             
             skelmtx1 = [obj.ASS([myindex_s11,myindex_s12],myindex_mysep);
                 obj.ANS(myindex_s21,myindex_mysep)];
+            if isempty(skelmtx1)
+                obj.nbInfo(k).empty = 1;
+                continue
+            end
             [T1,p11,p12] = ID(skelmtx1,tol); % skelmtx1(:,p12) = skelmtx1(:,p11) * T1.
             myindex_p11 = myindex_mysep(p11);
             myindex_p12 = myindex_mysep(p12);
@@ -479,6 +486,10 @@ classdef HIFGraph < handle
             % nodekASS(nodekindex_s2,nodekindex_p22) = nodekASS(nodekindex_s2,nodekindex_p21) * T2.
             skelmtx2 = [nodek.ASS([nodekindex_s21,nodekindex_s22],nodekindex_mynb);
                 nodek.ANS(nodekindex_s12,nodekindex_mynb)];
+            if isempty(skelmtx2)
+                obj.nbInfo(k).empty = 1;
+                continue
+            end
             [T2,p21,p22] = ID(skelmtx2,tol); % skelmtx2(:,p22) = skelmtx1(:,p21) * T2.
             myindex_p21 = myindex_mynb(p21);
             myindex_p22 = myindex_mynb(p22);
@@ -605,6 +616,8 @@ classdef HIFGraph < handle
             nodek.ASS(nodekindex_p22,nodekindex_p21) = 0;
             obj.ANS(myindex_p22,myindex_p11) = 0;
             nodek.ANS(nodekindex_p11,nodekindex_p22) = 0;
+            
+            obj.nbInfo(k).empty = 0;
         end
         
         obj.re = sort(obj.re);
@@ -772,6 +785,9 @@ classdef HIFGraph < handle
                 end
             end
         end
+        
+        % Set single seps.
+        obj = SetSingleSep(obj);
         
         end
         
@@ -1234,8 +1250,7 @@ classdef HIFGraph < handle
         disp("  ");
         disp(" Current level: " + whatlevel);
         disp("  ");
-        
-        
+                
         map = GetHIFMap(obj,whatlevel);
         inactive = find(obj.active == 0);
         start = max(map) + 1;
