@@ -40,6 +40,7 @@ classdef HIFGraph < handle
         children = cell(1,2); % Children nodes.
         nbNode = {}; % Neighbor nodes.
         nbNodeSeqNum = []; % Neighbor nodes's seqNum.
+        nbNodeLevel = []; % Neighbor nodes's level.
         root; % Root node.
         nbInfo = struct([]); % Neighbor nodes' information when skeletonization.
         indexInfo = struct([]); % Index information when merge and split.
@@ -239,8 +240,10 @@ classdef HIFGraph < handle
             obj_child = obj.children{iter};
             obj_child.nbNode{end+1} = obj.children{3-iter};
             obj_child.nbNodeSeqNum(end+1) = obj.children{3-iter}.seqNum;
+            obj_child.nbNodeLevel(end+1) = obj.children{3-iter}.level;
             % We only need to find nbNode from the children node of
-            % parent's nbNode.
+            % parent's nbNode or parent's nbNode if it doesn't have a
+            % child.
             if ~isempty(obj.nbNode)
                 for i = 1:length(obj.nbNode)
                     nbNodei = obj.nbNode{i};
@@ -249,11 +252,18 @@ classdef HIFGraph < handle
                     for it = [1,2]
                         nbNodei_child = nbNodei.children{it};
                         if isempty(nbNodei_child)
-                            continue;
-                        end
-                        if ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
+                            % The nbNodei doesn't have a child. We should
+                            % look it as a nbNode.
+                            if ~isempty(intersect(obj_child.nb, nbNodei.vtx))
+                                obj_child.nbNode{end+1} = nbNodei;
+                                obj_child.nbNodeSeqNum(end+1) = nbNodei.seqNum;
+                                obj_child.nbNodeLevel(end+1) = nbNodei.level;
+                            end
+                            break;
+                        elseif ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
                             obj_child.nbNode{end+1} = nbNodei_child;
                             obj_child.nbNodeSeqNum(end+1) = nbNodei_child.seqNum;
+                            obj_child.nbNodeLevel(end+1) = nbNodei_child.level;
                         end
                     end
                 end
@@ -299,6 +309,10 @@ classdef HIFGraph < handle
         function obj = SetSepType(obj)
         % SetSepType Set sep type.
        
+        if ~isempty(find(obj.vtx == 244,1))
+            a = 0;
+        end
+        
         ordersep = zeros(length(obj.sep),1);
         
         for k = 1:length(obj.nbNode)
@@ -413,6 +427,10 @@ classdef HIFGraph < handle
         for k = 1:length(obj.nbNode)
             % We do skel according to nbNode.
             nodek = obj.nbNode{k};
+            if nodek.level ~= obj.level
+                obj.nbInfo(k).empty = 1;
+                continue;
+            end
             if nodek.seqNum < obj.seqNum
                 obj.nbInfo(k).empty = 1;
                 continue;
@@ -431,8 +449,12 @@ classdef HIFGraph < handle
             end
             mysep1C = [mysep1C,obj.complexsep];
             nodeksep1C = setdiff(nodek.nb,sep1,'sorted');
-                        
-            korder = find(nodek.nbNodeSeqNum == obj.seqNum,1);
+            
+            korder = find(nodek.nbNodeSeqNum == obj.seqNum);
+            if length(korder) > 1
+                 klevel = find(nodek.nbNodeLevel == obj.level);
+                korder = intersect(klevel,korder);
+            end
             sep2 = nodek.singlesep{korder};
             % nodeksep2C = setdiff(nodek.sep,sep2,'sorted');
             nodeksep2C = [];
@@ -593,7 +615,7 @@ classdef HIFGraph < handle
         obj.nbre = sort(obj.nbre);
         
         end
-        
+       
         function obj = NoSkel(obj)
         % NoSkel No skeletonization.
         
@@ -1260,7 +1282,7 @@ classdef HIFGraph < handle
             map = ones(1,n);
         end
         
-        if obj.level == whatlevel
+        if obj.level == whatlevel || obj.endFlag == 1
             map(obj.vtx) = obj.seqNum;
             return;
         else
@@ -1339,7 +1361,7 @@ classdef HIFGraph < handle
             map = ones(1,n);
         end
         
-        if obj.level == whatlevel
+        if obj.level == whatlevel || obj.endFlag == 1
             map(obj.vtx) = obj.seqNum;
             return;
         else
