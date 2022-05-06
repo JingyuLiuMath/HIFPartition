@@ -1,6 +1,6 @@
 %% 2D example
-[A,xy] = grid5(16);
-A = full(A);
+[A,xy] = grid5(64);
+A = full(A); 
 Axy.A = A;
 Axy.xy = xy;
 
@@ -15,10 +15,10 @@ DemoFinalPart(HIF);
 HIF = FillTree(HIF);
 HIF = Factorization(HIF,1e-3,0);
 
-x = ones(size(A,1),1);
+x = rand(size(A,1),1);
 b = A*x;
 HIF = HIFSolve(HIF,b);
-disp('Relative error:')
+disp(" Relative error:")
 disp(norm(HIF.solution - x)/norm(x))
 
 %% 3D example.
@@ -34,14 +34,14 @@ HIF = HIFGraph(Axy);
 HIF = BuildTree(HIF,method);
 HIF = SetNbNode(HIF);
 % DemoPart(HIF)
-% DemoFinalPart(HIF);
+DemoFinalPart(HIF);
 HIF = FillTree(HIF);
-HIF = Factorization(HIF,1e-3,1);
+HIF = Factorization(HIF,1e-5,0);
 
 x = rand(size(A,1),1);
 b = A*x;
 HIF = HIFSolve(HIF,b);
-disp('Relative error:')
+disp(" Relative error:")
 disp(norm(HIF.solution - x)/norm(x))
 
 %% Triangular example
@@ -57,14 +57,14 @@ HIF = HIFGraph(Axy);
 HIF = BuildTree(HIF,method);
 HIF = SetNbNode(HIF);
 % DemoPart(HIF)
-DemoFinalPart(HIF);
+% DemoFinalPart(HIF);
 HIF = FillTree(HIF);
-HIF = Factorization(HIF,1e-3,0);
+HIF = Factorization(HIF,1e-7,0);
 
 x = rand(size(A,1),1);
 b = A*x;
 HIF = HIFSolve(HIF,b);
-disp('Relative error:')
+disp(" Relative error:")
 disp(norm(HIF.solution - x)/norm(x))
 
 %% Solve Ainv
@@ -76,5 +76,5 @@ for i = 1:size(A,1)
     Ainv(:,i) = HIF.solution;
 end
 dA = Ainv - inv(A);
-disp('Norm(dA):')
+disp(" Norm(dA):")
 disp(norm(dA))
