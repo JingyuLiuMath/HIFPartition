@@ -1,5 +1,5 @@
 %% 2D example
-[A,xy] = grid5(32);
+[A,xy] = grid5(16);
 A = full(A); 
 Axy.A = A;
 Axy.xy = xy;
@@ -10,10 +10,10 @@ method = "Specpart";
 HIF = HIFGraph(Axy);
 HIF = BuildTree(HIF,method);
 HIF = SetNbNode(HIF);
-% DemoPart(HIF)
+DemoPart(HIF)
 DemoFinalPart(HIF);
 HIF = FillTree(HIF);
-HIF = Factorization(HIF,1e-3,0);
+HIF = Factorization(HIF,1e-3,1);
 
 x = rand(size(A,1),1);
 b = A*x;
@@ -57,7 +57,8 @@ HIF = HIFGraph(Axy);
 HIF = BuildTree(HIF,method);
 HIF = SetNbNode(HIF);
 % DemoPart(HIF)
-DemoFinalPart(HIF);
+% DemoFinalPart(HIF);
+% DemoLevelPart(HIF,8);
 HIF = FillTree(HIF);
 HIF = Factorization(HIF,1e-7,0);
 

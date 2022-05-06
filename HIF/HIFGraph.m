@@ -254,10 +254,23 @@ classdef HIFGraph < handle
                         if isempty(nbNodei_child)
                             % The nbNodei doesn't have a child. We should
                             % look it as a nbNode.
-                            if ~isempty(intersect(obj_child.nb, nbNodei.vtx))
+                            if ~isempty(intersect(obj_child.nb,nbNodei.vtx))
+                                % NOTE: We have to avoid add one's parent as its nbNode.
+                                dlevel = nbNodei.level - obj_child.level;
+                                myseqnum = obj_child.seqNum;
+                                for k = 1:dlevel
+                                    myseqnum = mod(myseqnum,2);
+                                end
+                                if myseqnum == nbNodei.seqNum
+                                    break;
+                                end
+                                
                                 obj_child.nbNode{end+1} = nbNodei;
                                 obj_child.nbNodeSeqNum(end+1) = nbNodei.seqNum;
                                 obj_child.nbNodeLevel(end+1) = nbNodei.level;
+%                                 nbNodei.nbNode{end+1} = obj_child;
+%                                 nbNodei.nbNodeSeqNum(end+1) = obj_child.seqNum;
+%                                 nbNodei.nbNodeLevel(end+1) = obj_child.level;
                             end
                             break;
                         elseif ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
@@ -380,8 +393,8 @@ classdef HIFGraph < handle
         if obj.level == whatlevel
             obj = SparseElim(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveSparseElim(obj.children{iter},whatlevel);
                 end
             end
@@ -412,8 +425,8 @@ classdef HIFGraph < handle
             obj = Skel(obj,tol);
             % obj = NoSkel(obj); % No skeletonization.
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveSkel(obj.children{iter},whatlevel,tol);
                 end
             end
@@ -629,8 +642,8 @@ classdef HIFGraph < handle
         if obj.level == whatlevel
             obj = Merge(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveMerge(obj.children{iter},whatlevel);
                 end
             end
@@ -922,8 +935,8 @@ classdef HIFGraph < handle
         if obj.level == whatlevel
             obj = ApplySparseElimUp(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveApplySparseElimUp(obj.children{iter},whatlevel);
                 end
             end
@@ -950,8 +963,8 @@ classdef HIFGraph < handle
         if obj.level == whatlevel
             obj = ApplySkelUp(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveApplySkelUp(obj.children{iter},whatlevel);
                 end
             end
@@ -1009,8 +1022,8 @@ classdef HIFGraph < handle
         if obj.level == whatlevel
             obj = ApplyMerge(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveApplyMerge(obj.children{iter},whatlevel);
                 end
             end
@@ -1091,8 +1104,8 @@ classdef HIFGraph < handle
         if obj.level == whatlevel
             obj = ApplySplit(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveApplySplit(obj.children{iter},whatlevel);
                 end
             end
@@ -1150,8 +1163,8 @@ classdef HIFGraph < handle
         if obj.level == whatlevel
             obj = ApplySkelDown(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveApplySkelDown(obj.children{iter},whatlevel);
                 end
             end
@@ -1201,8 +1214,8 @@ classdef HIFGraph < handle
         if obj.level == whatlevel
             obj = ApplySparseElimDown(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveApplySparseElimDown(obj.children{iter},whatlevel);
                 end
             end
@@ -1245,9 +1258,9 @@ classdef HIFGraph < handle
         disp(" Start demo the partition ");
         disp("  ");
         
-        figure(1);
+        fig = figure();
         clf reset;
-        colordef(1,'black');
+        colordef(fig,'black');
         gplotg(obj.inputAxy.A,obj.inputAxy.xy);
         
         disp(" Hit space to continue ... ");
@@ -1270,6 +1283,31 @@ classdef HIFGraph < handle
         
         end
         
+        function DemoLevelPart(obj,whatlevel)
+        % DemoLevelPart Demo the specified level partition.
+        
+        assert(~isempty(obj.inputAxy.xy),"Need coordinates!")
+        
+        disp("  ");
+        disp(" Current level: " + whatlevel);
+        disp("  ");
+        
+        fig = figure();
+        clf reset;
+        colordef(fig,'black');
+        gplotg(obj.inputAxy.A,obj.inputAxy.xy);
+        
+        disp(" Hit space to continue ... ");
+        disp("  ");
+        pause;
+        map = GetPartMap(obj,whatlevel);
+        gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
+        disp(" Hit space to end ... ");
+        disp("  ");
+        pause;
+        
+        end
+              
         function map = GetPartMap(obj,whatlevel,map)
         % GetPartMap Get the map of the partition.
         
@@ -1287,9 +1325,7 @@ classdef HIFGraph < handle
             return;
         else
             for iter = [1,2]
-                if ~isempty(obj.children{iter})
-                    map = GetPartMap(obj.children{iter},whatlevel,map);
-                end
+                map = GetPartMap(obj.children{iter},whatlevel,map);
             end
         end
         
@@ -1304,9 +1340,9 @@ classdef HIFGraph < handle
         disp(" Start demo the final partition ");
         disp("  ");
         
-        figure(1);
+        fig = figure();
         clf reset;
-        colordef(1,'black');
+        colordef(fig,'black');
         gplotg(obj.inputAxy.A,obj.inputAxy.xy);
         
         disp(" Hit space to continue ... ");
@@ -1333,7 +1369,7 @@ classdef HIFGraph < handle
         disp(" Current level: " + whatlevel);
         disp("  ");
                 
-        map = GetHIFMap(obj,whatlevel);
+        map = GetPartMap(obj,whatlevel);
         inactive = find(obj.active == 0);
         start = max(map) + 1;
         n = length(inactive);
@@ -1348,25 +1384,24 @@ classdef HIFGraph < handle
         pause;
         
         end
+              
+        function levelVec = ReadLevel(obj,levelVec)
+        % ReadLevel Obtain level vectors.
         
-        function map = GetHIFMap(obj,whatlevel,map)
-        % GetHIFMap Recursively get HIF map.
-        
-        if nargin == 2
-            map = [];
+        if nargin == 1
+            levelVec = [];
         end
         
         if obj.level == 0
-            n = size(obj.inputAxy.xy,1);
-            map = ones(1,n);
+            levelVec = zeros(obj.numLevels,1);
         end
         
-        if obj.level == whatlevel || obj.endFlag == 1
-            map(obj.vtx) = obj.seqNum;
+        if obj.endFlag == 1
+            levelVec(obj.level) = levelVec(obj.level) + 1;
             return;
         else
             for iter = [1,2]
-                map = GetHIFMap(obj.children{iter},whatlevel,map);
+                levelVec = ReadLevel(obj.children{iter},levelVec);
             end
         end
         
