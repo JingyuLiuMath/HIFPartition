@@ -8,8 +8,8 @@ classdef MFGraph < handle
         % The following information will be stored only in the root node.
         
         inputAxy; % Input Axy.
-        active; % Whether a vtx is eliminated.
-        inputVec; % Input vec.
+        active; % Whether a vertex is eliminated.
+        inputVec; % Input vector.
         solution; % Solution.
         demoMF = 0; % Whether to demo our MF process.
         
@@ -35,6 +35,7 @@ classdef MFGraph < handle
         children = cell(1,2); % Children nodes.
         nbNode = {}; % Neighbor nodes. In fact, we don't need this in MF.
         root; % Root node.
+        indexInfo = struct([]); % Index information when merge and split.
         
         % Matrices properties.
         
@@ -144,6 +145,7 @@ classdef MFGraph < handle
         
         % Clear information.
         obj.Axy = [];
+        obj.nbA = [];
         
         % Recursively buildtree.
         for iter = [1,2]
@@ -260,8 +262,6 @@ classdef MFGraph < handle
         % FillTree Fill tree structure with A.
         
         % We clear the following data: Axy, nbA and sort vtx, sep, nb.
-        % In fact, they can be clear after being passed to children.
-        obj.Axy = []; obj.nbA = [];
         obj.vtx = sort(obj.vtx);
         obj.sep = sort(obj.sep);
         obj.nb = sort(obj.nb);
@@ -346,7 +346,7 @@ classdef MFGraph < handle
         obj.AIIinvAIS = obj.LI'\obj.AIIinvAIS;
         % ASS = ASS - ASI * AII^{-1} * ASI^{T}.
         obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS;
-        obj.AII = [];
+        % ASI = 0.
         
         end
         
@@ -357,7 +357,9 @@ classdef MFGraph < handle
             obj = Merge(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveMerge(obj.children{iter},whatlevel);
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveMerge(obj.children{iter},whatlevel);
+                end
             end
         end
         
@@ -388,112 +390,175 @@ classdef MFGraph < handle
         % sep: children's sep and children's nb
         % nb: children's nb
         
-        obj.AII = zeros(length(obj.int));
-        % An int of the parent only belongs to the sep of one of its
-        % children. If two ints belong to the same child, we assign AII
-        % from the child's ASS. Otherwise, we assign AII from one child's
-        % ANS or 0.
-        for j = 1:length(obj.int)
-            intj = obj.int(j);
-            if find(obj.children{1}.vtx == intj)
-                where_intj = 1;
-            else
-                where_intj = 2;
-            end
-            index_intj = find(obj.children{where_intj}.sep == intj);
-            for i = 1:length(obj.int)
-                inti = obj.int(i);
-                index_inti = find(obj.children{where_intj}.sep == inti,1);
-                if isempty(index_inti)
-                    index_inti = find(obj.children{where_intj}.nb == inti,1);
-                    if isempty(index_inti)
-                        obj.AII(i,j) = 0;
-                    else
-                        obj.AII(i,j) = obj.children{where_intj}.ANS(index_inti,index_intj);
-                    end
-                else
-                    obj.AII(i,j) = obj.children{where_intj}.ASS(index_inti,index_intj);
-                end
-            end
-        end
+        % We assign values blockly. The details can be found in the for-for
+        % loop later.
         
+        obj.AII = zeros(length(obj.int));
+        [int1,myindex_int1,~] = intersect(obj.int,obj.children{1}.vtx);
+        [~,cindex_int1] = ismember(int1,obj.children{1}.sep);
+        [int2,myindex_int2,~] = intersect(obj.int,obj.children{2}.vtx);
+        [~,cindex_int2] = ismember(int2,obj.children{2}.sep);
+        [~,myindex_int21,cindex_int21] = intersect(obj.int,obj.children{1}.nb);
+        obj.indexInfo(1).myindex_int = myindex_int1;
+        obj.indexInfo(1).cindex_int = cindex_int1;
+        obj.indexInfo(2).myindex_int = myindex_int2;
+        obj.indexInfo(2).cindex_int = cindex_int2;
+        obj.AII(myindex_int1,myindex_int1) = obj.children{1}.ASS(cindex_int1,cindex_int1);
+        obj.AII(myindex_int2,myindex_int2) = obj.children{2}.ASS(cindex_int2,cindex_int2);
+        obj.AII(myindex_int21,myindex_int1) = obj.children{1}.ANS(cindex_int21,cindex_int1);
+        obj.AII(myindex_int1,myindex_int2) = obj.AII(myindex_int2,myindex_int1)';
+                
         obj.ASI = zeros(length(obj.sep),length(obj.int));
-        % A sep of the parent only belongs to the sep of one of its
-        % children. If an int and a sep belongs to the same child, we
-        % assign ASI from the child's ASS. Otherwise, we assign ASI from
-        % the int child's ANS or 0.
-        for j = 1:length(obj.int)
-            intj = obj.int(j);
-            if find(obj.children{1}.vtx == intj)
-                where_intj = 1;
-            else
-                where_intj = 2;
-            end
-            index_intj = find(obj.children{where_intj}.sep == intj);
-            for i = 1:length(obj.sep)
-                sepi = obj.sep(i);
-                index_sepi = find(obj.children{where_intj}.sep == sepi,1);
-                if isempty(index_sepi)
-                    index_sepi = find(obj.children{where_intj}.nb == sepi,1);
-                    if isempty(index_sepi)
-                        obj.ASI(i,j) = 0;
-                    else
-                        obj.ASI(i,j) = obj.children{where_intj}.ANS(index_sepi,index_intj);
-                    end
-                else
-                    obj.ASI(i,j) = obj.children{where_intj}.ASS(index_sepi,index_intj);
-                end
-            end
-        end
+        [~,myindex_sep1x,cindex_sep1x] = intersect(obj.sep,obj.children{1}.sep);
+        [~,myindex_sep1y,cindex_sep1y] = intersect(obj.sep,obj.children{1}.nb);
+        [~,myindex_sep2x,cindex_sep2x] = intersect(obj.sep,obj.children{2}.sep);
+        [~,myindex_sep2y,cindex_sep2y] = intersect(obj.sep,obj.children{2}.nb);
+        obj.ASI(myindex_sep1x,myindex_int1) = obj.children{1}.ASS(cindex_sep1x,cindex_int1);
+        obj.ASI(myindex_sep2x,myindex_int2) = obj.children{2}.ASS(cindex_sep2x,cindex_int2);
+        obj.ASI(myindex_sep1y,myindex_int1) = obj.children{1}.ANS(cindex_sep1y,cindex_int1);
+        obj.ASI(myindex_sep2y,myindex_int2) = obj.children{2}.ANS(cindex_sep2y,cindex_int2);
         
         obj.ASS = zeros(length(obj.sep));
-        % If two seps belongs to the same child, we assign ASS from the
-        % child's ASS. Otherwise, we assign ASS from one child's ANN or 0.
-        for j = 1:length(obj.sep)
-            sepj = obj.sep(j);
-            if find(obj.children{1}.vtx == sepj)
-                where_sepj = 1;
-            else
-                where_sepj = 2;
-            end
-            index_sepj = find(obj.children{where_sepj}.sep == sepj);
-            for i = 1:length(obj.sep)
-                sepi = obj.sep(i);
-                index_sepi = find(obj.children{where_sepj}.sep == sepi,1);
-                if isempty(index_sepi)
-                    index_sepi = find(obj.children{where_sepj}.nb == sepi,1);
-                    if isempty(index_sepi)
-                        obj.ASS(i,j) = 0;
-                    else
-                        obj.ASS(i,j) = obj.children{where_sepj}.ANS(index_sepi,index_sepj);
-                    end
-                else
-                    obj.ASS(i,j) = obj.children{where_sepj}.ASS(index_sepi,index_sepj);
-                end
-            end
+        [sep1,myindex_sep1,~] = intersect(obj.sep,obj.children{1}.vtx);
+        [~,cindex_sep1] = ismember(sep1,obj.children{1}.sep);
+        [sep2,myindex_sep2,~] = intersect(obj.sep,obj.children{2}.vtx);
+        [~,cindex_sep2] = ismember(sep2,obj.children{2}.sep);
+        [~,myindex_sep21,cindex_sep21] = intersect(obj.sep,obj.children{1}.nb);
+        obj.indexInfo(1).myindex_sep = myindex_sep1;
+        obj.indexInfo(1).cindex_sep = cindex_sep1;
+        obj.indexInfo(2).myindex_sep = myindex_sep2;
+        obj.indexInfo(2).cindex_sep = cindex_sep2;
+        obj.ASS(myindex_sep1,myindex_sep1) = obj.children{1}.ASS(cindex_sep1,cindex_sep1);
+        obj.ASS(myindex_sep2,myindex_sep2) = obj.children{2}.ASS(cindex_sep2,cindex_sep2);
+        obj.ASS(myindex_sep21,myindex_sep1) = obj.children{1}.ANS(cindex_sep21,cindex_sep1);
+        obj.ASS(myindex_sep1,myindex_sep2) = obj.ASS(myindex_sep2,myindex_sep1)';
+               
+        obj.ANS = zeros(length(obj.nb),length(obj.sep));
+        [~,myindex_nb1x,cindex_nb1x] = intersect(obj.nb,obj.children{1}.nb);
+        [~,myindex_nb2x,cindex_nb2x] = intersect(obj.nb,obj.children{2}.nb);
+        obj.ANS(myindex_nb1x,myindex_sep1) = obj.children{1}.ANS(cindex_nb1x,cindex_sep1);
+        obj.ANS(myindex_nb2x,myindex_sep2) = obj.children{2}.ANS(cindex_nb2x,cindex_sep2);
+        
+        %%% ------------------------Details---------------------------- %%%
+%         obj.AII = zeros(length(obj.int));
+%         % An int of the parent only belongs to the sep of one of its
+%         % children. If two ints belong to the same child, we assign AII
+%         % from the child's ASS. Otherwise, we assign AII from one child's
+%         % ANS or 0.
+%         for j = 1:length(obj.int)
+%             intj = obj.int(j);
+%             if find(obj.children{1}.vtx == intj)
+%                 where_intj = 1;
+%             else
+%                 where_intj = 2;
+%             end
+%             index_intj = find(obj.children{where_intj}.sep == intj);
+%             for i = 1:length(obj.int)
+%                 inti = obj.int(i);
+%                 index_inti = find(obj.children{where_intj}.sep == inti,1);
+%                 if isempty(index_inti)
+%                     index_inti = find(obj.children{where_intj}.nb == inti,1);
+%                     if isempty(index_inti)
+%                         obj.AII(i,j) = 0;
+%                     else
+%                         obj.AII(i,j) = obj.children{where_intj}.ANS(index_inti,index_intj);
+%                     end
+%                 else
+%                     obj.AII(i,j) = obj.children{where_intj}.ASS(index_inti,index_intj);
+%                 end
+%             end
+%         end
+%         
+%         obj.ASI = zeros(length(obj.sep),length(obj.int));
+%         % A sep of the parent only belongs to the sep of one of its
+%         % children. If an int and a sep belongs to the same child, we
+%         % assign ASI from the child's ASS. Otherwise, we assign ASI from
+%         % the int child's ANS or 0.
+%         for j = 1:length(obj.int)
+%             intj = obj.int(j);
+%             if find(obj.children{1}.vtx == intj)
+%                 where_intj = 1;
+%             else
+%                 where_intj = 2;
+%             end
+%             index_intj = find(obj.children{where_intj}.sep == intj);
+%             for i = 1:length(obj.sep)
+%                 sepi = obj.sep(i);
+%                 index_sepi = find(obj.children{where_intj}.sep == sepi,1);
+%                 if isempty(index_sepi)
+%                     index_sepi = find(obj.children{where_intj}.nb == sepi,1);
+%                     if isempty(index_sepi)
+%                         obj.ASI(i,j) = 0;
+%                     else
+%                         obj.ASI(i,j) = obj.children{where_intj}.ANS(index_sepi,index_intj);
+%                     end
+%                 else
+%                     obj.ASI(i,j) = obj.children{where_intj}.ASS(index_sepi,index_intj);
+%                 end
+%             end
+%         end
+%         
+%         obj.ASS = zeros(length(obj.sep));
+%         % If two seps belongs to the same child, we assign ASS from the
+%         % child's ASS. Otherwise, we assign ASS from one child's ANN or 0.
+%         for j = 1:length(obj.sep)
+%             sepj = obj.sep(j);
+%             if find(obj.children{1}.vtx == sepj)
+%                 where_sepj = 1;
+%             else
+%                 where_sepj = 2;
+%             end
+%             index_sepj = find(obj.children{where_sepj}.sep == sepj);
+%             for i = 1:length(obj.sep)
+%                 sepi = obj.sep(i);
+%                 index_sepi = find(obj.children{where_sepj}.sep == sepi,1);
+%                 if isempty(index_sepi)
+%                     index_sepi = find(obj.children{where_sepj}.nb == sepi,1);
+%                     if isempty(index_sepi)
+%                         obj.ASS(i,j) = 0;
+%                     else
+%                         obj.ASS(i,j) = obj.children{where_sepj}.ANS(index_sepi,index_sepj);
+%                     end
+%                 else
+%                     obj.ASS(i,j) = obj.children{where_sepj}.ASS(index_sepi,index_sepj);
+%                 end
+%             end
+%         end
+%         
+%         obj.ANS = zeros(length(obj.nb),length(obj.sep));
+%         % If a nb and a sep in the same child, we assign ANS from the
+%         % child's ANS. Otherwise, ANS= 0.
+%         for j = 1:length(obj.sep)
+%             sepj = obj.sep(j);
+%             if find(obj.children{1}.vtx == sepj)
+%                 where_sepj = 1;
+%             else
+%                 where_sepj = 2;
+%             end
+%             index_sepj = find(obj.children{where_sepj}.sep == sepj);
+%             for i = 1:length(obj.nb)
+%                 nbi = obj.nb(i);
+%                 index_nbi = find(obj.children{where_sepj}.nb == nbi,1);
+%                 if isempty(index_nbi)
+%                     obj.ANS(i,j) = 0;
+%                 else
+%                     obj.ANS(i,j) = obj.children{where_sepj}.ANS(index_nbi,index_sepj);
+%                 end
+%             end
+%         end
+        %%% ----------------------------------------------------------- %%%
+        
+        % Clear children information.
+        for iter = [1,2]
+            obj.children{iter} = MFClear(obj.children{iter});
         end
         
-        obj.ANS = zeros(length(obj.nb),length(obj.sep));
-        % If a nb and a sep in the same child, we assign ANS from the
-        % child's ANS. Otherwise, ANS= 0.
-        for j = 1:length(obj.sep)
-            sepj = obj.sep(j);
-            if find(obj.children{1}.vtx == sepj)
-                where_sepj = 1;
-            else
-                where_sepj = 2;
-            end
-            index_sepj = find(obj.children{where_sepj}.sep == sepj);
-            for i = 1:length(obj.nb)
-                nbi = obj.nb(i);
-                index_nbi = find(obj.children{where_sepj}.nb == nbi,1);
-                if isempty(index_nbi)
-                    obj.ANS(i,j) = 0;
-                else
-                    obj.ANS(i,j) = obj.children{where_sepj}.ANS(index_nbi,index_sepj);
-                end
-            end
         end
+        
+        function obj = MFClear(obj)
+        % HIFClear Clear unnecessary information.
+        
+        % TODO: MFClear.
         
         end
         
@@ -501,7 +566,8 @@ classdef MFGraph < handle
         % RootFactorization Factorization on the root.
         
         obj.root.active(obj.int) = 0;
-        [obj.LI,obj.DI] = ldl(obj.AII); % AII = L * L^T.
+        % AII = LI * DI * LI^{T}.
+        [obj.LI,obj.DI] = ldl(obj.AII);
         
         end
         
@@ -598,7 +664,9 @@ classdef MFGraph < handle
             obj = ApplyMerge(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveApplyMerge(obj.children{iter},whatlevel);
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveApplyMerge(obj.children{iter},whatlevel);
+                end
             end
         end
         
@@ -613,46 +681,60 @@ classdef MFGraph < handle
             return;
         end
         
-        % We have specified the parent's int. So we only to assign the
-        % corresponding vectors.
+        % We only need to assign the corresponding vectors.
         
         obj.xI = zeros(length(obj.int),1);
-        % An int of the parent only belongs to the sep of one of its
-        % children. We get xI from the children's xS.
-        for j =1:length(obj.int)
-            intj = obj.int(j);
-            if find(obj.children{1}.vtx == intj)
-                where_intj = 1;
-            else
-                where_intj = 2;
-            end
-            index_intj = find(obj.children{where_intj}.sep == intj);
-            obj.xI(j) = obj.children{where_intj}.xS(index_intj);
+        for iter = [1,2]
+            obj.xI(obj.indexInfo(iter).myindex_int) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_int);
         end
         
         obj.xS = zeros(length(obj.sep),1);
-        % A sep of the parent only belongs to the sep of one of its
-        % children. We get xS from the children's xS.
-        for j = 1:length(obj.sep)
-            sepj = obj.sep(j);
-            if find(obj.children{1}.vtx == sepj)
-                where_sepj = 1;
-            else
-                where_sepj = 2;
-            end
-            index_sepj = find(obj.children{where_sepj}.sep == sepj);
-            obj.xS(j) = obj.children{where_sepj}.xS(index_sepj);
+        for iter = [1,2]
+            obj.xS(obj.indexInfo(iter).myindex_sep) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep);
         end
+        
+        %%% ------------------------Details---------------------------- %%%
+%         obj.xI = zeros(length(obj.int),1);
+%         % An int of the parent only belongs to the sep of one of its
+%         % children. We get xI from the children's xS.
+%         for j =1:length(obj.int)
+%             intj = obj.int(j);
+%             if find(obj.children{1}.vtx == intj)
+%                 where_intj = 1;
+%             else
+%                 where_intj = 2;
+%             end
+%             index_intj = find(obj.children{where_intj}.sep == intj);
+%             obj.xI(j) = obj.children{where_intj}.xS(index_intj);
+%         end
+%         
+%         obj.xS = zeros(length(obj.sep),1);
+%         % A sep of the parent only belongs to the sep of one of its
+%         % children. We get xS from the children's xS.
+%         for j = 1:length(obj.sep)
+%             sepj = obj.sep(j);
+%             if find(obj.children{1}.vtx == sepj)
+%                 where_sepj = 1;
+%             else
+%                 where_sepj = 2;
+%             end
+%             index_sepj = find(obj.children{where_sepj}.sep == sepj);
+%             obj.xS(j) = obj.children{where_sepj}.xS(index_sepj);
+%         end
+        %%% ----------------------------------------------------------- %%%
         
         end
         
         function obj = RootApply(obj)
         % RootApply Apply on the root.
         
+        % xI = LI^{-1} * xI.
         obj.xI = obj.LI\obj.xI;
         
+        % xI = DI^{-1} * xI.
         obj.xI = obj.DI\obj.xI;
         
+        % xI = LI^{-T} * xI.
         obj.xI = obj.LI'\obj.xI;
         
         end
@@ -664,7 +746,9 @@ classdef MFGraph < handle
             obj = ApplySplit(obj);
         else
             for iter = [1,2]
-                obj.children{iter} = RecursiveApplySplit(obj.children{iter},whatlevel);
+                if ~isempty(obj.children{iter})
+                    obj.children{iter} = RecursiveApplySplit(obj.children{iter},whatlevel);
+                end
             end
         end
         
@@ -681,29 +765,36 @@ classdef MFGraph < handle
         
         % We only need to assign the corresponding vectors of the children.
         
-        % xI
-        for j = 1:length(obj.int)
-            intj = obj.int(j);
-            if find(obj.children{1}.vtx == intj)
-                where_intj = 1;
-            else
-                where_intj = 2;
-            end
-            index_intj = find(obj.children{where_intj}.sep == intj);
-            obj.children{where_intj}.xS(index_intj) = obj.xI(j);
+        for iter = [1,2]
+            obj.children{iter}.xS(obj.indexInfo(iter).cindex_int) = obj.xI(obj.indexInfo(iter).myindex_int);
+            obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep) = obj.xS(obj.indexInfo(iter).myindex_sep);
         end
         
-        % xS
-        for j = 1:length(obj.sep)
-            sepj = obj.sep(j);
-            if find(obj.children{1}.vtx == sepj)
-                where_sepj = 1;
-            else
-                where_sepj = 2;
-            end
-            index_sepj = find(obj.children{where_sepj}.sep == sepj);
-            obj.children{where_sepj}.xS(index_sepj) = obj.xS(j);
-        end
+        %%% ------------------------Details---------------------------- %%%
+        % xI
+%         for j = 1:length(obj.int)
+%             intj = obj.int(j);
+%             if find(obj.children{1}.vtx == intj)
+%                 where_intj = 1;
+%             else
+%                 where_intj = 2;
+%             end
+%             index_intj = find(obj.children{where_intj}.sep == intj);
+%             obj.children{where_intj}.xS(index_intj) = obj.xI(j);
+%         end
+%         
+%         % xS
+%         for j = 1:length(obj.sep)
+%             sepj = obj.sep(j);
+%             if find(obj.children{1}.vtx == sepj)
+%                 where_sepj = 1;
+%             else
+%                 where_sepj = 2;
+%             end
+%             index_sepj = find(obj.children{where_sepj}.sep == sepj);
+%             obj.children{where_sepj}.xS(index_sepj) = obj.xS(j);
+%         end
+        %%% ----------------------------------------------------------- %%%
         
         end
         

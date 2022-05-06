@@ -18,7 +18,7 @@ MF = Factorization(MF,0);
 x = rand(size(A,1),1);
 b = A*x;
 MF = MFSolve(MF,b);
-disp('Relative error:')
+disp(" Relative error:")
 disp(norm(MF.solution - x)/norm(x))
 
 %% 3D example.
@@ -41,7 +41,7 @@ MF = Factorization(MF,0);
 x = rand(size(A,1),1);
 b = A*x;
 MF = MFSolve(MF,b);
-disp('Relative error:')
+disp(" Relative error:")
 disp(norm(MF.solution - x)/norm(x))
 
 %% Triangular example
@@ -65,7 +65,7 @@ MF = Factorization(MF,0);
 x = rand(size(A,1),1);
 b = A*x;
 MF = MFSolve(MF,b);
-disp('Relative error:')
+disp(" Relative error:")
 disp(norm(MF.solution - x)/norm(x))
 
 %% Solve Ainv
@@ -77,5 +77,5 @@ for i = 1:size(A,1)
     Ainv(:,i) = MF.solution;
 end
 dA = Ainv - inv(A);
-disp('Norm(dA):')
+disp(" Norm(dA):")
 disp(norm(dA))
