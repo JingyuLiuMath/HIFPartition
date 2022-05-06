@@ -36,6 +36,8 @@ classdef MFGraph < handle
         nbNode = {}; % Neighbor nodes. In fact, we don't need this in MF.
         root; % Root node.
         indexInfo = struct([]); % Index information when merge and split.
+        nbNodeSeqNum = []; % Neighbor nodes's seqNum.
+        nbNodeLevel = []; % Neighbor nodes's level.
         
         % Matrices properties.
         
@@ -231,8 +233,11 @@ classdef MFGraph < handle
         for iter = [1,2]
             obj_child = obj.children{iter};
             obj_child.nbNode{end+1} = obj.children{3-iter};
+            obj_child.nbNodeSeqNum(end+1) = obj.children{3-iter}.seqNum;
+            obj_child.nbNodeLevel(end+1) = obj.children{3-iter}.level;
             % We only need to find nbNode from the children node of
-            % parent's nbNode.
+            % parent's nbNode or parent's nbNode if it doesn't have a
+            % child.
             if ~isempty(obj.nbNode)
                 for i = 1:length(obj.nbNode)
                     nbNodei = obj.nbNode{i};
@@ -241,10 +246,18 @@ classdef MFGraph < handle
                     for it = [1,2]
                         nbNodei_child = nbNodei.children{it};
                         if isempty(nbNodei_child)
-                            continue;
-                        end
-                        if ~isempty(intersect(obj_child.nb,nbNodei_child.vtx))
+                            % The nbNodei doesn't have a child. We should
+                            % look it as a nbNode.
+                            if ~isempty(intersect(obj_child.nb, nbNodei.vtx))
+                                obj_child.nbNode{end+1} = nbNodei;
+                                obj_child.nbNodeSeqNum(end+1) = nbNodei.seqNum;
+                                obj_child.nbNodeLevel(end+1) = nbNodei.level;
+                            end
+                            break;
+                        elseif ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
                             obj_child.nbNode{end+1} = nbNodei_child;
+                            obj_child.nbNodeSeqNum(end+1) = nbNodei_child.seqNum;
+                            obj_child.nbNodeLevel(end+1) = nbNodei_child.level;
                         end
                     end
                 end
@@ -257,7 +270,7 @@ classdef MFGraph < handle
         end
         
         end
-                
+  
         function obj = FillTree(obj)
         % FillTree Fill tree structure with A.
         
