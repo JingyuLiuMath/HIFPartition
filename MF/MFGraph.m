@@ -338,8 +338,8 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = SparseElim(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveSparseElim(obj.children{iter},whatlevel);
                 end
             end
@@ -369,8 +369,8 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = Merge(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveMerge(obj.children{iter},whatlevel);
                 end
             end
@@ -648,8 +648,8 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = ApplySparseElimUp(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveApplySparseElimUp(obj.children{iter},whatlevel);
                 end
             end
@@ -676,8 +676,8 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = ApplyMerge(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveApplyMerge(obj.children{iter},whatlevel);
                 end
             end
@@ -758,8 +758,8 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = ApplySplit(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveApplySplit(obj.children{iter},whatlevel);
                 end
             end
@@ -817,8 +817,8 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = ApplySparseElimDown(obj);
         else
-            for iter = [1,2]
-                if ~isempty(obj.children{iter})
+            if obj.endFlag == 0
+                for iter = [1,2]
                     obj.children{iter} = RecursiveApplySparseElimDown(obj.children{iter},whatlevel);
                 end
             end
@@ -886,6 +886,32 @@ classdef MFGraph < handle
         
         end
         
+        function DemoLevelPart(obj,whatlevel)
+        % DemoLevelPart Demo the specified level partition.
+        
+        assert(~isempty(obj.inputAxy.xy),"Need coordinates!")
+        
+        disp("  ");
+        disp(" Current level: " + whatlevel);
+        disp("  ");
+        
+        figure(1);
+        clf reset;
+        colordef(1,'black');
+        gplotg(obj.inputAxy.A,obj.inputAxy.xy);
+        
+        disp(" Hit space to continue ... ");
+        disp("  ");
+        pause;
+        map = GetPartMap(obj,whatlevel);
+        gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
+        disp(" Hit space to end ... ");
+        disp("  ");
+        pause;
+        
+        end
+        
+        
         function map = GetPartMap(obj,whatlevel,map)
         % GetPartMap Get the map of the partition.
         
@@ -903,9 +929,7 @@ classdef MFGraph < handle
             return;
         else
             for iter = [1,2]
-                if ~isempty(obj.children{iter})
-                    map = GetPartMap(obj.children{iter},whatlevel,map);
-                end
+                map = GetPartMap(obj.children{iter},whatlevel,map);
             end
         end
         
@@ -950,7 +974,7 @@ classdef MFGraph < handle
         disp("  ");
         
         
-        map = GetMFMap(obj,whatlevel);
+        map = GetPartMap(obj,whatlevel);
         inactive = find(obj.active == 0);
         start = max(map) + 1;
         n = length(inactive);
@@ -963,29 +987,6 @@ classdef MFGraph < handle
         end
         disp("  ");
         pause;
-        
-        end
-        
-        function map = GetMFMap(obj,whatlevel,map)
-        % GetMFMap Recursively get MF map.
-        
-        if nargin == 2
-            map = [];
-        end
-        
-        if obj.level == 0
-            n = size(obj.inputAxy.xy,1);
-            map = ones(1,n);
-        end
-        
-        if obj.level == whatlevel || obj.endFlag == 1
-            map(obj.vtx) = obj.seqNum;
-            return;
-        else
-            for iter = [1,2]
-                map = GetMFMap(obj.children{iter},whatlevel,map);
-            end
-        end
         
         end
         
