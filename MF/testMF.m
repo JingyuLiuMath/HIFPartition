@@ -45,7 +45,7 @@ disp(" Relative error:")
 disp(norm(MF.solution - x)/norm(x))
 
 %% Triangular example
-[A,xy] = gridt(16);
+[A,xy] = gridt(128);
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;

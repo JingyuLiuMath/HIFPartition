@@ -885,7 +885,7 @@ classdef MFGraph < handle
             map = ones(1,n);
         end
         
-        if obj.level == whatlevel
+        if obj.level == whatlevel || obj.endFlag == 1
             map(obj.vtx) = obj.seqNum;
             return;
         else
@@ -965,7 +965,7 @@ classdef MFGraph < handle
             map = ones(1,n);
         end
         
-        if obj.level == whatlevel
+        if obj.level == whatlevel || obj.endFlag == 1
             map(obj.vtx) = obj.seqNum;
             return;
         else
