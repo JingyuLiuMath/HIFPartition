@@ -1,5 +1,5 @@
 %% 2D example
-[A,xy] = grid5(64);
+[A,xy] = grid5(32);
 A = full(A); 
 Axy.A = A;
 Axy.xy = xy;
@@ -22,7 +22,7 @@ disp(" Relative error:")
 disp(norm(HIF.solution - x)/norm(x))
 
 %% 3D example.
-[A,xy] = grid3d(8);
+[A,xy] = grid3d(16);
 A = full(A);
 Axy.A = A;
 Axy.xy = xy;
