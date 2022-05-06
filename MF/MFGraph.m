@@ -111,7 +111,7 @@ classdef MFGraph < handle
             return
         end
         
-        if method == "Geocpart"            
+        if method == "Geopart"            
             % Geopart.
             [p1,p2,sep1,sep2] = geopart(obj.Axy.A,obj.Axy.xy,numtries);
             sep1 = unique(sep1);
