@@ -323,10 +323,6 @@ classdef HIFGraph < handle
         function obj = SetSepType(obj)
         % SetSepType Set sep type.
         
-        if ~isempty(find(obj.vtx == 244,1))
-            a = 0;
-        end
-        
         ordersep = zeros(length(obj.sep),1);
         
         for k = 1:length(obj.nbNode)
@@ -501,42 +497,42 @@ classdef HIFGraph < handle
             
             skelmtx1 = [obj.ASS(myindex_sep1C,myindex_sep1);
                 obj.ANS(myindex_mysep2C,myindex_sep1)];
+            skelmtx2 = [nodek.ASS(nodekindex_sep2C,nodekindex_sep2);
+                nodek.ANS(nodekindex_nodeksep1C,nodekindex_sep2)];
+            if isempty(skelmtx1) || isempty(skelmtx2)
+                obj.nbInfo(k).empty = 1;
+                continue;
+            end
+            
             [T1,p11,p12] = ID(skelmtx1,tol); % skelmtx1(:,p12) = skelmtx1(:,p11) * T1.
             myindex_p11 = myindex_sep1(p11);
             myindex_p12 = myindex_sep1(p12);
             nodekindex_p11 = nodekindex_sep1(p11);
             nodekindex_p12 = nodekindex_sep1(p12);
-            if ~isempty(find(sep1(p12)==146,1))
-                a = 0;
-            end
             
-            skelmtx2 = [nodek.ASS(nodekindex_sep2C,nodekindex_sep2);
-                nodek.ANS(nodekindex_nodeksep1C,nodekindex_sep2)];
+            obj.re = [obj.re,sep1(p12)];
+            nodek.nbre = [nodek.nbre,sep1(p12)];
+            obj.nbInfo(k).Th1c1 = T1;
+            obj.nbInfo(k).myindex_p11 = myindex_p11;
+            obj.nbInfo(k).myindex_p12 = myindex_p12;
+            obj.nbInfo(k).nodekindex_p11 = nodekindex_p11;
+            obj.nbInfo(k).nodekindex_p12 = nodekindex_p12;
+            
             [T2,p21,p22] = ID(skelmtx2,tol); % skelmtx2(:,p22) = skelmtx1(:,p21) * T2.
             myindex_p21 = myindex_sep2(p21);
             myindex_p22 = myindex_sep2(p22);
             nodekindex_p21 = nodekindex_sep2(p21);
             nodekindex_p22 = nodekindex_sep2(p22);
             
-            if ~isempty(find(sep2(p22)==146,1))
-                a = 0;
-            end
-            
-            % Assign corresponding information.
-            obj.nbInfo(k).myindex_p11 = myindex_p11;
-            obj.nbInfo(k).myindex_p12 = myindex_p12;
-            obj.nbInfo(k).nodekindex_p11 = nodekindex_p11;
-            obj.nbInfo(k).nodekindex_p12 = nodekindex_p12;
-            obj.re = [obj.re,sep1(p12)];
-            obj.nbInfo(k).Th1c1 = T1;
-            nodek.nbre = [nodek.nbre,sep1(p12)];
+            nodek.re = [nodek.re,sep2(p22)];
+            obj.nbre = [obj.nbre,sep2(p22)];
+            obj.nbInfo(k).Th2c2 = T2;
             obj.nbInfo(k).myindex_p21 = myindex_p21;
             obj.nbInfo(k).myindex_p22 = myindex_p22;
             obj.nbInfo(k).nodekindex_p21 = nodekindex_p21;
             obj.nbInfo(k).nodekindex_p22 = nodekindex_p22;
-            nodek.re = [nodek.re,sep2(p22)];
-            obj.nbInfo(k).Th2c2 = T2;
-            obj.nbre = [obj.nbre,sep2(p22)];
+           
+            obj.nbInfo(k).empty = 0;
             
             % Step 1
             Ac1h1T1 = obj.ASS(myindex_p11,myindex_p12)'*T1;
@@ -622,8 +618,6 @@ classdef HIFGraph < handle
             % Ah2h2 = Ah2h2 - Ah2c2 * Ac2c2^{-1} * Ah2c2^{T}.
             nodek.ASS(nodekindex_p21,nodekindex_p21) = nodek.ASS(nodekindex_p21,nodekindex_p21)- nodek.ASS(nodekindex_p21,nodekindex_p22)*obj.nbInfo(k).Ac2c2invAc2h2;
             % Ah2c2 = Ac2h1 = 0.
-            
-            obj.nbInfo(k).empty = 0;
         end
         
         obj.re = sort(obj.re);
@@ -888,11 +882,7 @@ classdef HIFGraph < handle
         end
         
         function obj = ApplySkelUp(obj)
-        % ApplySkelUp Phase 1 for applying skeletonization.
-        
-        if obj.level == 3 && obj.seqNum == 4
-            a = 0;
-        end
+        % ApplySkelUp Phase 1 for applying skeletonization.       
         
         for k = 1:length(obj.nbNode)
             nbnodek = obj.nbNode{k};
