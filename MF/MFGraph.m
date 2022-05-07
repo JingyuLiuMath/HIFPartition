@@ -861,9 +861,9 @@ classdef MFGraph < handle
         disp(" Start demo the partition ");
         disp("  ");
         
-        figure(1);
+        fig = figure();
         clf reset;
-        colordef(1,'black');
+        colordef(fig,'black');
         gplotg(obj.inputAxy.A,obj.inputAxy.xy);
         
         disp(" Hit space to continue ... ");
@@ -895,9 +895,9 @@ classdef MFGraph < handle
         disp(" Current level: " + whatlevel);
         disp("  ");
         
-        figure(1);
+        fig = figure();
         clf reset;
-        colordef(1,'black');
+        colordef(fig,'black');
         gplotg(obj.inputAxy.A,obj.inputAxy.xy);
         
         disp(" Hit space to continue ... ");
@@ -910,8 +910,7 @@ classdef MFGraph < handle
         pause;
         
         end
-        
-        
+               
         function map = GetPartMap(obj,whatlevel,map)
         % GetPartMap Get the map of the partition.
         
@@ -944,9 +943,9 @@ classdef MFGraph < handle
         disp(" Start demo the final partition ");
         disp("  ");
         
-        figure(1);
+        fig = figure();
         clf reset;
-        colordef(1,'black');
+        colordef(fig,'black');
         gplotg(obj.inputAxy.A,obj.inputAxy.xy);
         
         disp(" Hit space to continue ... ");
