@@ -1,22 +1,20 @@
 %% 2D example.
 [A,xy] = grid5(32);
-A = full(A);
-Axy.A = A;
-Axy.xy = xy;
 
 %% 3D example.
 [A,xy] = grid3d(16);
-A = full(A);
-Axy.A = A;
-Axy.xy = xy;
 
 %% Triangular example.
 [A,xy] = gridt(32);
-A = full(A);
-Axy.A = A;
-Axy.xy = xy;
 
 %% Basic settings.
+A = full(A);
+Axy.A = A;
+if exist("xy")
+    Axy.xy = xy;
+else
+    Axy.xy = [];
+end
 method = "Specpart";
 % method = "Geopart";
 tol = 1e-3;
