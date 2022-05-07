@@ -9,9 +9,10 @@ classdef MFGraph < handle
         
         inputAxy; % Input Axy.
         active; % Whether a vertex is eliminated.
-        inputVec; % Input vector.
+        inputVec; % Input vector (We admit a matrix input which will be treated by its columns).
         solution; % Solution.
         demoMF = 0; % Whether to demo our MF process.
+        inputVecWidth; % Input vector's length.
         
         % Graph properties.
         
@@ -113,7 +114,7 @@ classdef MFGraph < handle
             return
         end
         
-        if method == "Geopart"            
+        if method == "Geopart"
             % Geopart.
             [p1,p2,sep1,sep2] = geopart(obj.Axy.A,obj.Axy.xy,numtries);
             sep1 = unique(sep1);
@@ -164,7 +165,7 @@ classdef MFGraph < handle
         end
         
         end
-
+        
         function obj = Pass(obj)
         % PASS Send parent's sep, nb, nbA to children.
         
@@ -270,7 +271,7 @@ classdef MFGraph < handle
         end
         
         end
-  
+        
         function obj = FillTree(obj)
         % FillTree Fill tree structure with A.
         
@@ -403,8 +404,7 @@ classdef MFGraph < handle
         % sep: children's sep and children's nb
         % nb: children's nb
         
-        % We assign values blockly. The details can be found in the for-for
-        % loop later.
+        % We assign values blockly. The details can be found later.
         
         obj.AII = zeros(length(obj.int));
         [int1,myindex_int1,~] = intersect(obj.int,obj.children{1}.vtx);
@@ -420,7 +420,7 @@ classdef MFGraph < handle
         obj.AII(myindex_int2,myindex_int2) = obj.children{2}.ASS(cindex_int2,cindex_int2);
         obj.AII(myindex_int21,myindex_int1) = obj.children{1}.ANS(cindex_int21,cindex_int1);
         obj.AII(myindex_int1,myindex_int2) = obj.AII(myindex_int2,myindex_int1)';
-                
+        
         obj.ASI = zeros(length(obj.sep),length(obj.int));
         [~,myindex_sep1x,cindex_sep1x] = intersect(obj.sep,obj.children{1}.sep);
         [~,myindex_sep1y,cindex_sep1y] = intersect(obj.sep,obj.children{1}.nb);
@@ -445,7 +445,7 @@ classdef MFGraph < handle
         obj.ASS(myindex_sep2,myindex_sep2) = obj.children{2}.ASS(cindex_sep2,cindex_sep2);
         obj.ASS(myindex_sep21,myindex_sep1) = obj.children{1}.ANS(cindex_sep21,cindex_sep1);
         obj.ASS(myindex_sep1,myindex_sep2) = obj.ASS(myindex_sep2,myindex_sep1)';
-               
+        
         obj.ANS = zeros(length(obj.nb),length(obj.sep));
         [~,myindex_nb1x,cindex_nb1x] = intersect(obj.nb,obj.children{1}.nb);
         [~,myindex_nb2x,cindex_nb2x] = intersect(obj.nb,obj.children{2}.nb);
@@ -453,112 +453,25 @@ classdef MFGraph < handle
         obj.ANS(myindex_nb2x,myindex_sep2) = obj.children{2}.ANS(cindex_nb2x,cindex_sep2);
         
         %%% ------------------------Details---------------------------- %%%
-%         obj.AII = zeros(length(obj.int));
-%         % An int of the parent only belongs to the sep of one of its
-%         % children. If two ints belong to the same child, we assign AII
-%         % from the child's ASS. Otherwise, we assign AII from one child's
-%         % ANS or 0.
-%         for j = 1:length(obj.int)
-%             intj = obj.int(j);
-%             if find(obj.children{1}.vtx == intj)
-%                 where_intj = 1;
-%             else
-%                 where_intj = 2;
-%             end
-%             index_intj = find(obj.children{where_intj}.sep == intj);
-%             for i = 1:length(obj.int)
-%                 inti = obj.int(i);
-%                 index_inti = find(obj.children{where_intj}.sep == inti,1);
-%                 if isempty(index_inti)
-%                     index_inti = find(obj.children{where_intj}.nb == inti,1);
-%                     if isempty(index_inti)
-%                         obj.AII(i,j) = 0;
-%                     else
-%                         obj.AII(i,j) = obj.children{where_intj}.ANS(index_inti,index_intj);
-%                     end
-%                 else
-%                     obj.AII(i,j) = obj.children{where_intj}.ASS(index_inti,index_intj);
-%                 end
-%             end
-%         end
-%         
-%         obj.ASI = zeros(length(obj.sep),length(obj.int));
-%         % A sep of the parent only belongs to the sep of one of its
-%         % children. If an int and a sep belongs to the same child, we
-%         % assign ASI from the child's ASS. Otherwise, we assign ASI from
-%         % the int child's ANS or 0.
-%         for j = 1:length(obj.int)
-%             intj = obj.int(j);
-%             if find(obj.children{1}.vtx == intj)
-%                 where_intj = 1;
-%             else
-%                 where_intj = 2;
-%             end
-%             index_intj = find(obj.children{where_intj}.sep == intj);
-%             for i = 1:length(obj.sep)
-%                 sepi = obj.sep(i);
-%                 index_sepi = find(obj.children{where_intj}.sep == sepi,1);
-%                 if isempty(index_sepi)
-%                     index_sepi = find(obj.children{where_intj}.nb == sepi,1);
-%                     if isempty(index_sepi)
-%                         obj.ASI(i,j) = 0;
-%                     else
-%                         obj.ASI(i,j) = obj.children{where_intj}.ANS(index_sepi,index_intj);
-%                     end
-%                 else
-%                     obj.ASI(i,j) = obj.children{where_intj}.ASS(index_sepi,index_intj);
-%                 end
-%             end
-%         end
-%         
-%         obj.ASS = zeros(length(obj.sep));
-%         % If two seps belongs to the same child, we assign ASS from the
-%         % child's ASS. Otherwise, we assign ASS from one child's ANN or 0.
-%         for j = 1:length(obj.sep)
-%             sepj = obj.sep(j);
-%             if find(obj.children{1}.vtx == sepj)
-%                 where_sepj = 1;
-%             else
-%                 where_sepj = 2;
-%             end
-%             index_sepj = find(obj.children{where_sepj}.sep == sepj);
-%             for i = 1:length(obj.sep)
-%                 sepi = obj.sep(i);
-%                 index_sepi = find(obj.children{where_sepj}.sep == sepi,1);
-%                 if isempty(index_sepi)
-%                     index_sepi = find(obj.children{where_sepj}.nb == sepi,1);
-%                     if isempty(index_sepi)
-%                         obj.ASS(i,j) = 0;
-%                     else
-%                         obj.ASS(i,j) = obj.children{where_sepj}.ANS(index_sepi,index_sepj);
-%                     end
-%                 else
-%                     obj.ASS(i,j) = obj.children{where_sepj}.ASS(index_sepi,index_sepj);
-%                 end
-%             end
-%         end
-%         
-%         obj.ANS = zeros(length(obj.nb),length(obj.sep));
-%         % If a nb and a sep in the same child, we assign ANS from the
-%         % child's ANS. Otherwise, ANS= 0.
-%         for j = 1:length(obj.sep)
-%             sepj = obj.sep(j);
-%             if find(obj.children{1}.vtx == sepj)
-%                 where_sepj = 1;
-%             else
-%                 where_sepj = 2;
-%             end
-%             index_sepj = find(obj.children{where_sepj}.sep == sepj);
-%             for i = 1:length(obj.nb)
-%                 nbi = obj.nb(i);
-%                 index_nbi = find(obj.children{where_sepj}.nb == nbi,1);
-%                 if isempty(index_nbi)
-%                     obj.ANS(i,j) = 0;
-%                 else
-%                     obj.ANS(i,j) = obj.children{where_sepj}.ANS(index_nbi,index_sepj);
-%                 end
-%             end
-%         end
+        % AII
+        % An int of the parent only belongs to the sep of one of its
+        % children. If two ints belong to the same child, we assign AII
+        % from the child's ASS. Otherwise, we assign AII from one child's
+        % ANS or 0.
+        
+        % ASI
+        % A sep of the parent only belongs to the sep of one of its
+        % children. If an int and a sep belongs to the same child, we
+        % assign ASI from the child's ASS. Otherwise, we assign ASI from
+        % one child's ANS or 0.
+        
+        % ASS
+        % If two seps belongs to the same child, we assign ASS from the
+        % child's ASS. Otherwise, we assign ASS from one child's ANS or 0.
+        
+        % ANS.
+        % If a nb and a sep in the same child, we assign ANS from the
+        % child's ANS. Otherwise, ANS= 0.
         %%% ----------------------------------------------------------- %%%
         
         % Clear children information.
@@ -592,6 +505,7 @@ classdef MFGraph < handle
         disp("  ");
         
         obj.inputVec = b;
+        obj.inputVecWidth = size(b,1);
         
         obj = BuildVecTree(obj,b);
         
@@ -630,8 +544,8 @@ classdef MFGraph < handle
                 obj.children{iter} = BuildVecTree(obj.children{iter},b);
             end
         else
-            obj.xI = b(obj.int);
-            obj.xS = b(obj.sep);
+            obj.xI = b(obj.int,:);
+            obj.xS = b(obj.sep,:);
         end
         
         if obj.level == 0
@@ -665,7 +579,7 @@ classdef MFGraph < handle
         % xI = LI^{-1} * xI.
         obj.xI = obj.LI\obj.xI;
         
-        % xI = DI^{-1} * xI. We only apply D once. 
+        % xI = DI^{-1} * xI. We only apply D once.
         obj.xI = obj.DI\obj.xI;
         
         end
@@ -687,7 +601,7 @@ classdef MFGraph < handle
         
         function obj = ApplyMerge(obj)
         % ApplyMerge Send vectors' information from children to parent.
-                
+        
         % We stand on the parent level.
         
         if obj.endFlag == 1
@@ -696,44 +610,23 @@ classdef MFGraph < handle
         
         % We only need to assign the corresponding vectors.
         
-        obj.xI = zeros(length(obj.int),1);
+        obj.xI = zeros(length(obj.int),obj.root.inputVecWidth);
         for iter = [1,2]
-            obj.xI(obj.indexInfo(iter).myindex_int) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_int);
+            obj.xI(obj.indexInfo(iter).myindex_int,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_int,:);
         end
         
         obj.xS = zeros(length(obj.sep),1);
         for iter = [1,2]
-            obj.xS(obj.indexInfo(iter).myindex_sep) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep);
+            obj.xS(obj.indexInfo(iter).myindex_sep,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep,:);
         end
         
         %%% ------------------------Details---------------------------- %%%
-%         obj.xI = zeros(length(obj.int),1);
-%         % An int of the parent only belongs to the sep of one of its
-%         % children. We get xI from the children's xS.
-%         for j =1:length(obj.int)
-%             intj = obj.int(j);
-%             if find(obj.children{1}.vtx == intj)
-%                 where_intj = 1;
-%             else
-%                 where_intj = 2;
-%             end
-%             index_intj = find(obj.children{where_intj}.sep == intj);
-%             obj.xI(j) = obj.children{where_intj}.xS(index_intj);
-%         end
-%         
-%         obj.xS = zeros(length(obj.sep),1);
-%         % A sep of the parent only belongs to the sep of one of its
-%         % children. We get xS from the children's xS.
-%         for j = 1:length(obj.sep)
-%             sepj = obj.sep(j);
-%             if find(obj.children{1}.vtx == sepj)
-%                 where_sepj = 1;
-%             else
-%                 where_sepj = 2;
-%             end
-%             index_sepj = find(obj.children{where_sepj}.sep == sepj);
-%             obj.xS(j) = obj.children{where_sepj}.xS(index_sepj);
-%         end
+        % xI.
+        % An int of the parent only belongs to the sep of one of its
+        % children. We get xI from the children's xS.
+        % xS.
+        % A sep of the parent only belongs to the sep of one of its
+        % children. We get xS from the children's xS.
         %%% ----------------------------------------------------------- %%%
         
         end
@@ -779,35 +672,9 @@ classdef MFGraph < handle
         % We only need to assign the corresponding vectors of the children.
         
         for iter = [1,2]
-            obj.children{iter}.xS(obj.indexInfo(iter).cindex_int) = obj.xI(obj.indexInfo(iter).myindex_int);
-            obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep) = obj.xS(obj.indexInfo(iter).myindex_sep);
+            obj.children{iter}.xS(obj.indexInfo(iter).cindex_int,:) = obj.xI(obj.indexInfo(iter).myindex_int,:);
+            obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep,:) = obj.xS(obj.indexInfo(iter).myindex_sep,:);
         end
-        
-        %%% ------------------------Details---------------------------- %%%
-        % xI
-%         for j = 1:length(obj.int)
-%             intj = obj.int(j);
-%             if find(obj.children{1}.vtx == intj)
-%                 where_intj = 1;
-%             else
-%                 where_intj = 2;
-%             end
-%             index_intj = find(obj.children{where_intj}.sep == intj);
-%             obj.children{where_intj}.xS(index_intj) = obj.xI(j);
-%         end
-%         
-%         % xS
-%         for j = 1:length(obj.sep)
-%             sepj = obj.sep(j);
-%             if find(obj.children{1}.vtx == sepj)
-%                 where_sepj = 1;
-%             else
-%                 where_sepj = 2;
-%             end
-%             index_sepj = find(obj.children{where_sepj}.sep == sepj);
-%             obj.children{where_sepj}.xS(index_sepj) = obj.xS(j);
-%         end
-        %%% ----------------------------------------------------------- %%%
         
         end
         
@@ -838,7 +705,7 @@ classdef MFGraph < handle
         % GetSolution Get the final soluion through the tree structure.
         
         if obj.level == 0
-            obj.solution = zeros(length(obj.int),1);
+            obj.solution = zeros(length(obj.int),obj.inputVecWidth);
         end
         
         if obj.endFlag == 0
@@ -846,8 +713,8 @@ classdef MFGraph < handle
                 obj.children{iter} = GetSolution(obj.children{iter});
             end
         else
-            obj.root.solution(obj.int) = obj.xI;
-            obj.root.solution(obj.sep) = obj.xS;
+            obj.root.solution(obj.int,:) = obj.xI;
+            obj.root.solution(obj.sep,:) = obj.xS;
         end
         
         end
@@ -868,11 +735,11 @@ classdef MFGraph < handle
         
         disp(" Hit space to continue ... ");
         disp("  ");
-            
+        
         for tmplevel = 0:obj.numLevels
             disp(" Current level: " + tmplevel);
             disp("  ");
-
+            
             map = GetPartMap(obj,tmplevel);
             gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
             if tmplevel ~= obj.numLevels
@@ -910,7 +777,7 @@ classdef MFGraph < handle
         pause;
         
         end
-               
+        
         function map = GetPartMap(obj,whatlevel,map)
         % GetPartMap Get the map of the partition.
         
@@ -958,7 +825,7 @@ classdef MFGraph < handle
         pause;
         
         end
-
+        
         function DemoMF(obj,whatlevel)
         % DemoMF Demo the MF process.
         
@@ -986,6 +853,28 @@ classdef MFGraph < handle
         end
         disp("  ");
         pause;
+        
+        end
+        
+        function levelVec = ReadLevel(obj,levelVec)
+        % ReadLevel Obtain level vectors.
+        
+        if nargin == 1
+            levelVec = [];
+        end
+        
+        if obj.level == 0
+            levelVec = zeros(obj.numLevels,1);
+        end
+        
+        if obj.endFlag == 1
+            levelVec(obj.level) = levelVec(obj.level) + 1;
+            return;
+        else
+            for iter = [1,2]
+                levelVec = ReadLevel(obj.children{iter},levelVec);
+            end
+        end
         
         end
         
