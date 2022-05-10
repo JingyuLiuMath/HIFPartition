@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <ProjectOutputs>
+    <ProjectOutput>
+      <FullPath>E:\HIFMatlab\metismex-master\external\metis\build\Win-x86_64\x64\Debug\ZERO_CHECK</FullPath>
+    </ProjectOutput>
+    <ProjectOutput>
+      <FullPath>E:\HIFMatlab\metismex-master\external\metis\build\Win-x86_64\programs\Debug\cmpfillin.exe</FullPath>
+    </ProjectOutput>
+    <ProjectOutput>
+      <FullPath>E:\HIFMatlab\metismex-master\external\metis\build\Win-x86_64\programs\Debug\gpmetis.exe</FullPath>
+    </ProjectOutput>
+    <ProjectOutput>
+      <FullPath>E:\HIFMatlab\metismex-master\external\metis\build\Win-x86_64\programs\Debug\graphchk.exe</FullPath>
+    </ProjectOutput>
+    <ProjectOutput>
+      <FullPath>E:\HIFMatlab\metismex-master\external\metis\build\Win-x86_64\programs\Debug\m2gmetis.exe</FullPath>
+    </ProjectOutput>
+    <ProjectOutput>
+      <FullPath>E:\HIFMatlab\metismex-master\external\metis\build\Win-x86_64\programs\Debug\mpmetis.exe</FullPath>
+    </ProjectOutput>
+    <ProjectOutput>
+      <FullPath>E:\HIFMatlab\metismex-master\external\metis\build\Win-x86_64\programs\Debug\ndmetis.exe</FullPath>
+    </ProjectOutput>
+    <ProjectOutput>
+      <FullPath>E:\HIFMatlab\metismex-master\external\metis\build\Win-x86_64\x64\Debug\ALL_BUILD</FullPath>
+    </ProjectOutput>
+  </ProjectOutputs>
+  <ContentFiles />
+  <SatelliteDlls />
+  <NonRecipeFileRefs />
+</Project>
