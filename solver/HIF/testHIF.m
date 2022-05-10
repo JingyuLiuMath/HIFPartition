@@ -34,7 +34,7 @@ HIF = Factorization(HIF,tol,demoHIF);
 % profsave(profile('info'),'profile_HIF')
 
 %% Solve linear systems.
-x = rand(size(A,1),1);
+x = ones(size(A,1),1);
 b = A*x;
 HIF = HIFSolve(HIF,b);
 disp(" Relative error:")

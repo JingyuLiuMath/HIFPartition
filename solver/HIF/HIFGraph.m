@@ -440,15 +440,18 @@ classdef HIFGraph < handle
             % The following data are vertices.
             sep1 = obj.singlesep{k};
             % mysep1C = setdiff(obj.sep,sep1,'sorted');
-            mysep1C = [];
+            mysep1C = zeros(1,length(obj.sep));
+            start = 1;
             for nok = 1:length(obj.nbNode)
                 if nok == k
                     continue;
                 else
-                    mysep1C = [mysep1C,obj.singlesep{nok}];
+                    mysep1C(start:start+length(obj.singlesep{nok})-1) = obj.singlesep{nok};
+                    start = start+length(obj.singlesep{nok});
                 end
             end
-            mysep1C = [mysep1C,obj.complexsep];
+            mysep1C(start:start+length(obj.complexsep)-1) = obj.complexsep;
+            mysep1C = mysep1C(mysep1C > 0);
             nodeksep1C = setdiff(nodek.nb,sep1,'sorted');
             
             korder = find(nodek.nbNodeSeqNum == obj.seqNum);
@@ -458,15 +461,18 @@ classdef HIFGraph < handle
             end
             sep2 = nodek.singlesep{korder};
             % nodeksep2C = setdiff(nodek.sep,sep2,'sorted');
-            nodeksep2C = [];
+            nodeksep2C = zeros(1,length(nodek.sep));
+            start = 1;
             for nok = 1:length(nodek.nbNode)
                 if nok == korder
                     continue;
                 else
-                    nodeksep2C = [nodeksep2C,nodek.singlesep{nok}];
+                    nodeksep2C(start:start+length(nodek.singlesep{nok})-1) = nodek.singlesep{nok};
+                    start = start + length(nodek.singlesep{nok});
                 end
             end
-            nodeksep2C = [nodeksep2C,nodek.complexsep];
+            nodeksep2C(start:start+length(nodek.complexsep)-1) = nodek.complexsep;
+            nodeksep2C = nodeksep2C(nodeksep2C > 0);
             mysep2C = setdiff(obj.nb,sep2,'sorted');
             
             % The following data are indices.
