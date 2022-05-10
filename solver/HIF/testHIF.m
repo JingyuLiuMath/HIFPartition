@@ -22,6 +22,7 @@ tol = 1e-3;
 demoHIF = 0;
 
 %% HIF process.
+% profile on
 HIF = HIFGraph(Axy);
 HIF = BuildTree(HIF,method);
 HIF = SetNbNode(HIF);
@@ -29,6 +30,7 @@ HIF = SetNbNode(HIF);
 % DemoFinalPart(HIF);
 HIF = FillTree(HIF);
 HIF = Factorization(HIF,tol,demoHIF);
+% profile viewer
 
 %% Solve linear systems.
 x = rand(size(A,1),1);
