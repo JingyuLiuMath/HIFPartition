@@ -7,7 +7,7 @@
 %% Triangular example.
 [A,xy] = gridt(32);
 
-%% Partition Methods.
+%% Basic settings.
 A = full(A);
 Axy.A = A;
 if exist("xy")
@@ -18,15 +18,18 @@ end
 method = "metis";
 % method = "meshpart_specpart";
 % method = "meshpart_geopart";
+demoMF = 0;
 
 %% MF process.
+% profile on
 MF = MFGraph(Axy);
 MF = BuildTree(MF,method);
 MF = SetNbNode(MF);
 % DemoPart(MF)
 % DemoFinalPart(MF);
 MF = FillTree(MF);
-MF = Factorization(MF,0);
+MF = Factorization(MF,demoMF);
+% profile viewer
 
 %% Solve linear systems.
 x = rand(size(A,1),1);
