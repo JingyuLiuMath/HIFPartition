@@ -9,6 +9,6 @@ file_path = mfilename('fullpath');
 tmp = strfind(file_path,'METIS_startup');
 file_path = file_path(1:(tmp(end)-1));
 addpath([file_path 'src']);
-addpath([file_path 'mex']);
+% addpath([file_path 'mex']);
 
 end
