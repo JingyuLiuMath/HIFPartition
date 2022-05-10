@@ -30,6 +30,7 @@ MF = SetNbNode(MF);
 MF = FillTree(MF);
 MF = Factorization(MF,demoMF);
 % profile viewer
+% profsave(profile('info'),'profile_MF')
 
 %% Solve linear systems.
 x = rand(size(A,1),1);

@@ -31,6 +31,7 @@ HIF = SetNbNode(HIF);
 HIF = FillTree(HIF);
 HIF = Factorization(HIF,tol,demoHIF);
 % profile viewer
+% profsave(profile('info'),'profile_HIF')
 
 %% Solve linear systems.
 x = rand(size(A,1),1);
