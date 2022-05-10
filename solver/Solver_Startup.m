@@ -7,5 +7,9 @@ run("..\meshpart\meshpart_startup.m")
 run("..\metismex\METIS_startup.m")
 % part
 addpath("./Part")
+% MF
+addpath("./MF")
+% HIF
+addpath("./HIF")
 
 end
