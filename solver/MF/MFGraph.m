@@ -93,17 +93,12 @@ classdef MFGraph < handle
         function obj = BuildTree(obj,method)
         % BuildTree Build tree structure according to a graph partition algorithm.
         
-        if nargin == 1
-            method = "Specpart";
-        end
-        
         if obj.level == 0
             disp("  ");
             disp(" Start build tree ");
             disp("  ");
         end
         
-        numtries = 30; % Only useful when using geopart.
         minvtx = 16; % Don't separate pieces smaller than this.
         
         n = size(obj.Axy.A,1);
@@ -114,27 +109,22 @@ classdef MFGraph < handle
             return
         end
         
-        if method == "Geopart"
-            % Geopart.
-            [p1,p2,sep1,sep2] = geopart(obj.Axy.A,obj.Axy.xy,numtries);
-            sep1 = unique(sep1);
-            sep2 = unique(sep2);
-            p = {p1,p2};
-            partsep = {sep1,sep2};
-            childAxy(1).A = obj.Axy.A(p1,p1); childAxy(1).xy = obj.Axy.xy(p1,:);
-            childAxy(2).A = obj.Axy.A(p2,p2); childAxy(2).xy = obj.Axy.xy(p2,:);
+        % Partition
+        [p1,p2,sep1,sep2] = GraphPart(obj.Axy,method);
+        sep1 = unique(sep1);
+        sep2 = unique(sep2);
+        p = {p1,p2};
+        partsep = {sep1,sep2};
+        childAxy(1).A = obj.Axy.A(p1,p1);
+        childAxy(2).A = obj.Axy.A(p2,p2);
+        if ~isempty(obj.Axy.xy)
+            childAxy(1).xy = obj.Axy.xy(p1,:);
+            childAxy(2).xy = obj.Axy.xy(p2,:);
         else
-            % Specpart.
-            [p1,p2,sep1,sep2] = specpart(obj.Axy.A);
-            sep1 = unique(sep1);
-            sep2 = unique(sep2);
-            p = {p1,p2};
-            partsep = {sep1,sep2};
-            childAxy(1).A = obj.Axy.A(p1,p1); childAxy(1).xy = [];
-            childAxy(2).A = obj.Axy.A(p2,p2); childAxy(2).xy = [];
+            childAxy(1).xy = [];
+            childAxy(2).xy = [];
         end
-        
-        
+            
         % Create children MF.
         for iter = [1,2]
             obj.children{iter} = MFGraph(childAxy(iter),obj.level+1,obj.seqNum*2+(iter-1),...
@@ -152,7 +142,7 @@ classdef MFGraph < handle
         
         % Recursively buildtree.
         for iter = [1,2]
-            obj.children{iter} = BuildTree(obj.children{iter});
+            obj.children{iter} = BuildTree(obj.children{iter},method);
         end
         
         % Get numLevels from children when partition ends.
@@ -505,7 +495,7 @@ classdef MFGraph < handle
         disp("  ");
         
         obj.inputVec = b;
-        obj.inputVecWidth = size(b,1);
+        obj.inputVecWidth = size(b,2);
         
         obj = BuildVecTree(obj,b);
         
@@ -615,7 +605,7 @@ classdef MFGraph < handle
             obj.xI(obj.indexInfo(iter).myindex_int,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_int,:);
         end
         
-        obj.xS = zeros(length(obj.sep),1);
+        obj.xS = zeros(length(obj.sep),obj.root.inputVecWidth);
         for iter = [1,2]
             obj.xS(obj.indexInfo(iter).myindex_sep,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep,:);
         end

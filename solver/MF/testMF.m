@@ -15,8 +15,9 @@ if exist("xy")
 else
     Axy.xy = [];
 end
-method = "Specpart";
-% method = "Geopart";
+method = "metis";
+% method = "meshpart_specpart";
+% method = "meshpart_geopart";
 
 %% MF process.
 MF = MFGraph(Axy);
@@ -36,8 +37,8 @@ disp(norm(MF.solution - x)/norm(x))
 
 %% Solve Ainv.
 I = eye(size(A,1));
-HIF = HIFSolve(HIF,I);
-Ainv = HIF.solution;
+MF = MFSolve(MF,I);
+Ainv = MF.solution;
 dA = Ainv - inv(A);
 disp(" Norm(dA):")
 disp(norm(dA,"Inf"))
