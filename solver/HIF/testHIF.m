@@ -15,8 +15,9 @@ if exist("xy")
 else
     Axy.xy = [];
 end
-method = "Specpart";
-% method = "Geopart";
+method = "metis";
+% method = "meshpart_specpart";
+% method = "meshpart_geopart";
 tol = 1e-3;
 demoHIF = 0;
 
