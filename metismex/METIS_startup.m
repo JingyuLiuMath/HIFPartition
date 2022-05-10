@@ -5,10 +5,13 @@ function METIS_startup()
 
 %   Copyright (c) 2015-2016 Yingzhou Li, Stanford University
 
+% Changed by Jingyu Liu.
+addpath('./build/src','./build/mex');
+
 file_path = mfilename('fullpath');
 tmp = strfind(file_path,'METIS_startup');
 file_path = file_path(1:(tmp(end)-1));
-addpath([file_path 'src']);
+% addpath([file_path 'src']);
 % addpath([file_path 'mex']);
 
 end
