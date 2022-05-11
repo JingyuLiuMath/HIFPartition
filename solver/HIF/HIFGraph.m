@@ -1,5 +1,5 @@
 classdef HIFGraph < handle
-    % HIFGraph HIF algorithm on general graphs.
+    % HIFGraph HIF algorithm based on graph partition.
     
     properties
         
@@ -11,8 +11,8 @@ classdef HIFGraph < handle
         active; % Whether a vertex is eliminated.
         inputVec; % Input vector (We admit a matrix input which will be treated by its columns).
         solution; % Solution.
-        demoHIF = 0; % Whether to demo our HIF process.
-        inputVecWidth; % Input vector's length.
+        demoHIF = 0; % Whether to demo the HIF process.
+        inputVecWidth; % Input vector's width.
         
         % Graph properties.
         
@@ -24,9 +24,9 @@ classdef HIFGraph < handle
         nbA; % Adjacency matrix of sep (row) and nb (col).
         re; % Redundant sep. We also use check (c) to reprsent it.
         sk; % Skeleton sep. We also use hat (h) to represent it.
-        nbre; % Redundant neighbor.
+        nbre; % Redundant nb.
         singlesep = {}; % Sep which only interact with one node.
-        complexsep; % Sep - singlesep;
+        complexsep; % Sep which interact with more than one nodes;
         
         % Partition properties.
         
@@ -40,10 +40,10 @@ classdef HIFGraph < handle
         parent; % Parent node.
         children = cell(1,2); % Children nodes.
         nbNode = {}; % Neighbor nodes.
-        nbNodeSeqNum = []; % Neighbor nodes's seqNum.
-        nbNodeLevel = []; % Neighbor nodes's level.
+        nbNodeSeqNum = []; % Neighbor nodes' seqNum.
+        nbNodeLevel = []; % Neighbor nodes' level.
         root; % Root node.
-        nbInfo = struct([]); % Neighbor nodes' information when skeletonization.
+        nbInfo = struct([]); % Information between a node and its nbNode when skeletonization.
         indexInfo = struct([]); % Index information when merge and split.
         
         % Matrices properties.
@@ -80,10 +80,9 @@ classdef HIFGraph < handle
             nb = [];
             nbA = [];
             
-            active = ones(1,n);
             obj.root = obj;
             obj.inputAxy = Axy;
-            obj.active = active;
+            obj.active = ones(1,n);
         end
         
         obj.Axy = Axy;
@@ -105,7 +104,7 @@ classdef HIFGraph < handle
             disp("  ");
         end
         
-        minvtx = 16; % Don't separate pieces smaller than this.
+        minvtx = 16; % Don't separate vertices smaller than this.
         
         n = size(obj.Axy.A,1);
         
@@ -259,9 +258,9 @@ classdef HIFGraph < handle
                                 obj_child.nbNode{end+1} = nbNodei;
                                 obj_child.nbNodeSeqNum(end+1) = nbNodei.seqNum;
                                 obj_child.nbNodeLevel(end+1) = nbNodei.level;
-                                %                                 nbNodei.nbNode{end+1} = obj_child;
-                                %                                 nbNodei.nbNodeSeqNum(end+1) = obj_child.seqNum;
-                                %                                 nbNodei.nbNodeLevel(end+1) = obj_child.level;
+%                                 nbNodei.nbNode{end+1} = obj_child;
+%                                 nbNodei.nbNodeSeqNum(end+1) = obj_child.seqNum;
+%                                 nbNodei.nbNodeLevel(end+1) = obj_child.level;
                             end
                             break;
                         elseif ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
@@ -284,7 +283,7 @@ classdef HIFGraph < handle
         function obj = FillTree(obj)
         % FillTree Fill tree structure with A.
         
-        % We clear the following data: Axy, nbA and sort vtx, sep, nb.
+        % Sort vtx, sep, nb.
         obj.vtx = sort(obj.vtx);
         obj.sep = sort(obj.sep);
         obj.nb = sort(obj.nb);
@@ -440,18 +439,21 @@ classdef HIFGraph < handle
             % The following data are vertices.
             sep1 = obj.singlesep{k};
             % mysep1C = setdiff(obj.sep,sep1,'sorted');
-            mysep1C = zeros(1,length(obj.sep));
-            start = 1;
+            % mysep1C = zeros(1,length(obj.sep));
+            mysep1C = [];
+            % start = 1;
             for nok = 1:length(obj.nbNode)
                 if nok == k
                     continue;
                 else
-                    mysep1C(start:start+length(obj.singlesep{nok})-1) = obj.singlesep{nok};
-                    start = start+length(obj.singlesep{nok});
+                    mysep1C = [mysep1C,obj.singlesep{nok}];
+                    % mysep1C(start:start+length(obj.singlesep{nok})-1) = obj.singlesep{nok};
+                    % start = start + length(obj.singlesep{nok});
                 end
             end
-            mysep1C(start:start+length(obj.complexsep)-1) = obj.complexsep;
-            mysep1C = mysep1C(mysep1C > 0);
+            % mysep1C(start:start+length(obj.complexsep)-1) = obj.complexsep;
+            % mysep1C = mysep1C(mysep1C > 0);
+            mysep1C = [mysep1C,obj.complexsep];
             nodeksep1C = setdiff(nodek.nb,sep1,'sorted');
             
             korder = find(nodek.nbNodeSeqNum == obj.seqNum);
@@ -461,18 +463,21 @@ classdef HIFGraph < handle
             end
             sep2 = nodek.singlesep{korder};
             % nodeksep2C = setdiff(nodek.sep,sep2,'sorted');
-            nodeksep2C = zeros(1,length(nodek.sep));
-            start = 1;
+            % nodeksep2C = zeros(1,length(nodek.sep));
+            nodeksep2C = [];
+            % start = 1;
             for nok = 1:length(nodek.nbNode)
                 if nok == korder
                     continue;
                 else
-                    nodeksep2C(start:start+length(nodek.singlesep{nok})-1) = nodek.singlesep{nok};
-                    start = start + length(nodek.singlesep{nok});
+                    nodeksep2C = [nodeksep2C,nodek.singlesep{nok}];
+                    % nodeksep2C(start:start+length(nodek.singlesep{nok})-1) = nodek.singlesep{nok};
+                    % start = start + length(nodek.singlesep{nok});
                 end
             end
-            nodeksep2C(start:start+length(nodek.complexsep)-1) = nodek.complexsep;
-            nodeksep2C = nodeksep2C(nodeksep2C > 0);
+            % nodeksep2C(start:start+length(nodek.complexsep)-1) = nodek.complexsep;
+            % nodeksep2C = nodeksep2C(nodeksep2C > 0);
+            nodeksep2C = [nodeksep2C,nodek.complexsep];
             mysep2C = setdiff(obj.nb,sep2,'sorted');
             
             % The following data are indices.
@@ -621,7 +626,7 @@ classdef HIFGraph < handle
         obj.nbre = sort(obj.nbre);
         
         end
-        
+ 
         function obj = NoSkel(obj)
         % NoSkel No skeletonization.
         
