@@ -245,11 +245,11 @@ classdef HIFGraph < handle
                             % The nbNodei doesn't have a child. We should
                             % look it as a nbNode.
                             if ~isempty(intersect(obj_child.nb,nbNodei.vtx))
-                                % NOTE: We have to avoid add one's parent as its nbNode.
-                                dlevel = nbNodei.level - obj_child.level;
+                                % NOTE: We have to avoid add one's ancestor as its nbNode.
+                                dlevel = obj_child.level - nbNodei.level;
                                 myseqnum = obj_child.seqNum;
                                 for k = 1:dlevel
-                                    myseqnum = mod(myseqnum,2);
+                                    myseqnum = floor(myseqnum/2);
                                 end
                                 if myseqnum == nbNodei.seqNum
                                     break;
@@ -263,10 +263,12 @@ classdef HIFGraph < handle
 %                                 nbNodei.nbNodeLevel(end+1) = obj_child.level;
                             end
                             break;
-                        elseif ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
-                            obj_child.nbNode{end+1} = nbNodei_child;
-                            obj_child.nbNodeSeqNum(end+1) = nbNodei_child.seqNum;
-                            obj_child.nbNodeLevel(end+1) = nbNodei_child.level;
+                        else
+                            if ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
+                                obj_child.nbNode{end+1} = nbNodei_child;
+                                obj_child.nbNodeSeqNum(end+1) = nbNodei_child.seqNum;
+                                obj_child.nbNodeLevel(end+1) = nbNodei_child.level;
+                            end
                         end
                     end
                 end
