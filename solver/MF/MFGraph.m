@@ -1,5 +1,5 @@
 classdef MFGraph < handle
-    % MFGraph Multifrontal algorithm on general graphs.
+    % MFGraph MF algorithm based on graph partition.
     
     properties
         
@@ -11,8 +11,8 @@ classdef MFGraph < handle
         active; % Whether a vertex is eliminated.
         inputVec; % Input vector (We admit a matrix input which will be treated by its columns).
         solution; % Solution.
-        demoMF = 0; % Whether to demo our MF process.
-        inputVecWidth; % Input vector's length.
+        demoMF = 0; % Whether to demo the MF process.
+        inputVecWidth; % Input vector's width.
         
         % Graph properties.
         
@@ -35,10 +35,10 @@ classdef MFGraph < handle
         parent; % Parent node.
         children = cell(1,2); % Children nodes.
         nbNode = {}; % Neighbor nodes. In fact, we don't need this in MF.
-        root; % Root node.
-        indexInfo = struct([]); % Index information when merge and split.
         nbNodeSeqNum = []; % Neighbor nodes's seqNum.
         nbNodeLevel = []; % Neighbor nodes's level.
+        root; % Root node.
+        indexInfo = struct([]); % Index information when merge and split.
         
         % Matrices properties.
         
@@ -74,10 +74,9 @@ classdef MFGraph < handle
             nb = [];
             nbA = [];
             
-            active = ones(1,n);
             obj.root = obj;
             obj.inputAxy = Axy;
-            obj.active = active;
+            obj.active = ones(1,n);
         end
         
         obj.Axy = Axy;
@@ -99,7 +98,7 @@ classdef MFGraph < handle
             disp("  ");
         end
         
-        minvtx = 16; % Don't separate pieces smaller than this.
+        minvtx = 16; % Don't separate vertices smaller than this.
         
         n = size(obj.Axy.A,1);
         
@@ -239,10 +238,23 @@ classdef MFGraph < handle
                         if isempty(nbNodei_child)
                             % The nbNodei doesn't have a child. We should
                             % look it as a nbNode.
-                            if ~isempty(intersect(obj_child.nb, nbNodei.vtx))
+                            if ~isempty(intersect(obj_child.nb,nbNodei.vtx))
+                                % NOTE: We have to avoid add one's parent as its nbNode.
+                                dlevel = nbNodei.level - obj_child.level;
+                                myseqnum = obj_child.seqNum;
+                                for k = 1:dlevel
+                                    myseqnum = mod(myseqnum,2);
+                                end
+                                if myseqnum == nbNodei.seqNum
+                                    break;
+                                end
+                                
                                 obj_child.nbNode{end+1} = nbNodei;
                                 obj_child.nbNodeSeqNum(end+1) = nbNodei.seqNum;
                                 obj_child.nbNodeLevel(end+1) = nbNodei.level;
+%                                 nbNodei.nbNode{end+1} = obj_child;
+%                                 nbNodei.nbNodeSeqNum(end+1) = obj_child.seqNum;
+%                                 nbNodei.nbNodeLevel(end+1) = obj_child.level;
                             end
                             break;
                         elseif ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
@@ -261,11 +273,11 @@ classdef MFGraph < handle
         end
         
         end
-        
+               
         function obj = FillTree(obj)
         % FillTree Fill tree structure with A.
         
-        % We clear the following data: Axy, nbA and sort vtx, sep, nb.
+        % Sort vtx, sep, nb.
         obj.vtx = sort(obj.vtx);
         obj.sep = sort(obj.sep);
         obj.nb = sort(obj.nb);
