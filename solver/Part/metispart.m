@@ -8,9 +8,9 @@ sep1 = sep;
 sep2 = [];
 for i = 1:length(sep1)
     sep1i = sep1(i);
-    sep2i = find(A(sep1i,:)~=0);
+    sep2i = find(A(sep1i,:) ~= 0);
     sep2i = intersect(sep2i,p2);
-    sep2 = sort(unique([sep2,sep2i]));
+    sep2 = unique([sep2,sep2i]);
 end
 
 end
