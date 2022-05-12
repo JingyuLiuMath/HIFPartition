@@ -26,7 +26,7 @@ classdef HIFGraph < handle
         sk; % Skeleton sep. We also use hat (h) to represent it.
         nbre; % Redundant nb.
         singlesep = {}; % Sep which only interact with one node.
-        complexsep; % Sep which interact with more than one nodes;
+        complexsep; % Sep which interact with more than one nodes.
         
         % Partition properties.
         
