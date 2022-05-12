@@ -23,15 +23,12 @@ classdef MFGraph < handle
         int; % Interior vertices.
         nbA; % Adjacency matrix of sep (row) and nb (col).
         
-        % Partition properties.
+        % Tree properties.
         
         numLevels; % Total number of levels.
         level; % Current level, start from 0.
         seqNum; % A node's order in its level.
         endFlag = 0; % Whether the partition ends.
-        
-        % Tree properties.
-        
         parent; % Parent node.
         children = cell(1,2); % Children nodes.
         nbNode = {}; % Neighbor nodes. In fact, we don't need this in MF.
