@@ -28,15 +28,12 @@ classdef HIFGraph < handle
         singlesep = {}; % Sep which only interact with one node.
         complexsep; % Sep which interact with more than one nodes.
         
-        % Partition properties.
+        % Tree properties.
         
         numLevels; % Total number of levels.
         level; % Current level, start from 0.
         seqNum; % A node's order in its level.
         endFlag = 0; % Whether the partition ends.
-        
-        % Tree properties.
-        
         parent; % Parent node.
         children = cell(1,2); % Children nodes.
         nbNode = {}; % Neighbor nodes.
