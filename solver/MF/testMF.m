@@ -35,9 +35,9 @@ MF = Factorization(MF,demoMF);
 %% Solve linear systems.
 x = rand(size(A,1),1);
 b = A*x;
-MF = MFSolve(MF,b);
+xsol = MFSolve(MF,b);
 disp(" Relative error:")
-disp(norm(MF.solution - x)/norm(x))
+disp(norm(xsol - x)/norm(x))
 
 %% Solve Ainv.
 I = eye(size(A,1));
