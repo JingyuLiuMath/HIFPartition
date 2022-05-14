@@ -42,8 +42,7 @@ disp(norm(xsol - x)/norm(x))
 
 %% Solve Ainv.
 I = eye(size(A,1));
-HIF = HIFSolve(HIF,I);
-Ainv = HIF.solution;
+Ainv = HIFSolve(HIF,I);
 dA = Ainv - inv(A);
 disp(" Norm(dA):")
 disp(norm(dA,"Inf"))
