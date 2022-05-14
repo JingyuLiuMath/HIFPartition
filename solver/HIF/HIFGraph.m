@@ -123,7 +123,7 @@ classdef HIFGraph < handle
             childAxy(1).xy = [];
             childAxy(2).xy = [];
         end
-            
+        
         % Create children HIF.
         for iter = [1,2]
             obj.children{iter} = HIFGraph(childAxy(iter),obj.level+1,obj.seqNum*2+(iter-1),...
@@ -252,9 +252,9 @@ classdef HIFGraph < handle
                                 obj_child.nbNode{end+1} = nbNodei;
                                 obj_child.nbNodeSeqNum(end+1) = nbNodei.seqNum;
                                 obj_child.nbNodeLevel(end+1) = nbNodei.level;
-%                                 nbNodei.nbNode{end+1} = obj_child;
-%                                 nbNodei.nbNodeSeqNum(end+1) = obj_child.seqNum;
-%                                 nbNodei.nbNodeLevel(end+1) = obj_child.level;
+                                %                                 nbNodei.nbNode{end+1} = obj_child;
+                                %                                 nbNodei.nbNodeSeqNum(end+1) = obj_child.seqNum;
+                                %                                 nbNodei.nbNodeLevel(end+1) = obj_child.level;
                             end
                             break;
                         else
@@ -528,7 +528,7 @@ classdef HIFGraph < handle
             obj.nbInfo(k).myindex_p22 = myindex_p22;
             obj.nbInfo(k).nodekindex_p21 = nodekindex_p21;
             obj.nbInfo(k).nodekindex_p22 = nodekindex_p22;
-           
+            
             obj.nbInfo(k).empty = 0;
             
             % Step 1
@@ -622,7 +622,7 @@ classdef HIFGraph < handle
         obj.nbre = sort(obj.nbre);
         
         end
- 
+        
         function obj = NoSkel(obj)
         % NoSkel No skeletonization.
         
@@ -659,13 +659,11 @@ classdef HIFGraph < handle
         % int: children's sk - sep.
         % sep: sep \cup children's sk.
         % nb: nb - children's nbre.
-        
         for iter = [1,2]
             obj.int = [obj.int,obj.children{iter}.sk];
             obj.re = [obj.re,obj.children{iter}.re];
             obj.nbre = [obj.nbre,obj.children{iter}.nbre];
         end
-        
         obj.sep = intersect(obj.sep,obj.int,'sorted');
         obj.nbre = setdiff(obj.nbre,obj.vtx);
         obj.int = setdiff(obj.int,obj.sep,'sorted');
@@ -678,8 +676,13 @@ classdef HIFGraph < handle
         % sep: children's sep and children's nb
         % nb: children's nb
         
-        % We assign values blockly. The details can be found later.
+        % We assign values blockly.
         
+        % AII
+        % An int of the parent only belongs to the sep of one of its
+        % children. If two ints belong to the same child, we assign AII
+        % from the child's ASS. Otherwise, we assign AII from one child's
+        % ANS or 0.
         obj.AII = zeros(length(obj.int));
         [int1,myindex_int1,~] = intersect(obj.int,obj.children{1}.vtx);
         [~,cindex_int1] = ismember(int1,obj.children{1}.sep);
@@ -695,6 +698,11 @@ classdef HIFGraph < handle
         obj.AII(myindex_int21,myindex_int1) = obj.children{1}.ANS(cindex_int21,cindex_int1);
         obj.AII(myindex_int1,myindex_int2) = obj.AII(myindex_int2,myindex_int1)';
         
+        % ASI
+        % A sep of the parent only belongs to the sep of one of its
+        % children. If an int and a sep belongs to the same child, we
+        % assign ASI from the child's ASS. Otherwise, we assign ASI from
+        % one child's ANS or 0.
         obj.ASI = zeros(length(obj.sep),length(obj.int));
         [~,myindex_sep1x,cindex_sep1x] = intersect(obj.sep,obj.children{1}.sep);
         [~,myindex_sep1y,cindex_sep1y] = intersect(obj.sep,obj.children{1}.nb);
@@ -705,6 +713,9 @@ classdef HIFGraph < handle
         obj.ASI(myindex_sep1y,myindex_int1) = obj.children{1}.ANS(cindex_sep1y,cindex_int1);
         obj.ASI(myindex_sep2y,myindex_int2) = obj.children{2}.ANS(cindex_sep2y,cindex_int2);
         
+        % ASS
+        % If two seps belongs to the same child, we assign ASS from the
+        % child's ASS. Otherwise, we assign ASS from one child's ANS or 0.
         obj.ASS = zeros(length(obj.sep));
         [sep1,myindex_sep1,~] = intersect(obj.sep,obj.children{1}.vtx);
         [~,cindex_sep1] = ismember(sep1,obj.children{1}.sep);
@@ -720,33 +731,14 @@ classdef HIFGraph < handle
         obj.ASS(myindex_sep21,myindex_sep1) = obj.children{1}.ANS(cindex_sep21,cindex_sep1);
         obj.ASS(myindex_sep1,myindex_sep2) = obj.ASS(myindex_sep2,myindex_sep1)';
         
+        % ANS.
+        % If a nb and a sep in the same child, we assign ANS from the
+        % child's ANS. Otherwise, ANS= 0.
         obj.ANS = zeros(length(obj.nb),length(obj.sep));
         [~,myindex_nb1x,cindex_nb1x] = intersect(obj.nb,obj.children{1}.nb);
         [~,myindex_nb2x,cindex_nb2x] = intersect(obj.nb,obj.children{2}.nb);
         obj.ANS(myindex_nb1x,myindex_sep1) = obj.children{1}.ANS(cindex_nb1x,cindex_sep1);
         obj.ANS(myindex_nb2x,myindex_sep2) = obj.children{2}.ANS(cindex_nb2x,cindex_sep2);
-        
-        %%% ------------------------Details---------------------------- %%%
-        % AII
-        % An int of the parent only belongs to the sep of one of its
-        % children. If two ints belong to the same child, we assign AII
-        % from the child's ASS. Otherwise, we assign AII from one child's
-        % ANS or 0.
-        
-        % ASI
-        % A sep of the parent only belongs to the sep of one of its
-        % children. If an int and a sep belongs to the same child, we
-        % assign ASI from the child's ASS. Otherwise, we assign ASI from
-        % one child's ANS or 0.
-        
-        % ASS
-        % If two seps belongs to the same child, we assign ASS from the
-        % child's ASS. Otherwise, we assign ASS from one child's ANS or 0.
-        
-        % ANS.
-        % If a nb and a sep in the same child, we assign ANS from the
-        % child's ANS. Otherwise, ANS= 0.
-        %%% ----------------------------------------------------------- %%%
         
         % Clear children information.
         for iter = [1,2]
@@ -876,7 +868,7 @@ classdef HIFGraph < handle
         end
         
         function obj = ApplySkelUp(obj)
-        % ApplySkelUp Phase 1 for applying skeletonization.       
+        % ApplySkelUp Phase 1 for applying skeletonization.
         
         for k = 1:length(obj.nbNode)
             nbnodek = obj.nbNode{k};
@@ -947,24 +939,21 @@ classdef HIFGraph < handle
         % We only need to assign the corresponding vectors.
         width = size(obj.children{1}.xS,2);
         
+        % xI.
+        % An int of the parent only belongs to the sep of one of its
+        % children. We get xI from the children's xS.
         obj.xI = zeros(length(obj.int),width);
         for iter = [1,2]
             obj.xI(obj.indexInfo(iter).myindex_int,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_int,:);
         end
         
+        % xS.
+        % A sep of the parent only belongs to the sep of one of its
+        % children. We get xS from the children's xS.
         obj.xS = zeros(length(obj.sep),width);
         for iter = [1,2]
             obj.xS(obj.indexInfo(iter).myindex_sep,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep,:);
         end
-        
-        %%% ------------------------Details---------------------------- %%%
-        % xI.
-        % An int of the parent only belongs to the sep of one of its
-        % children. We get xI from the children's xS.
-        % xS.
-        % A sep of the parent only belongs to the sep of one of its
-        % children. We get xS from the children's xS.
-        %%% ----------------------------------------------------------- %%%
         
         end
         
@@ -1091,7 +1080,7 @@ classdef HIFGraph < handle
         
         function x = GetSolution(obj,x)
         % GetSolution Get the final soluion through the tree structure.
-                
+        
         if obj.endFlag == 0
             for iter = [1,2]
                 x = GetSolution(obj.children{iter},x);
