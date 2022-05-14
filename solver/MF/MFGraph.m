@@ -13,12 +13,10 @@ classdef MFGraph < handle
         
         % Graph properties.
         
-        Axy; % Adjacency matrix (and coordinates of vertices).
         vtx; % Vertices on the graph.
         sep; % Separator vertices.
         nb; % Neighbor vertices.
         int; % Interior vertices.
-        nbA; % Adjacency matrix of sep (row) and nb (col).
         
         % Tree properties.
         
@@ -26,7 +24,6 @@ classdef MFGraph < handle
         level; % Current level, start from 0.
         seqNum; % A node's order in its level.
         endFlag = 0; % Whether the partition ends.
-        parent; % Parent node.
         children = cell(1,2); % Children nodes.
         nbNode = {}; % Neighbor nodes. In fact, we don't need this in MF.
         nbNodeSeqNum = []; % Neighbor nodes's seqNum.
@@ -56,45 +53,55 @@ classdef MFGraph < handle
     
     methods
         
-        function obj = MFGraph(Axy,level,seqNum,vtx,sep,nb,nbA)
+        function obj = MFGraph(Axy,minvtx,method,level,seqNum,vtx,sep,nb)
         % MFGraph Create a MF class.
         
         if nargin == 1
+            minvtx = 16;
+            method = "metis";
+        end
+        
+        if nargin == 2
+            method = "metis";
+        end
+        
+        if nargin <= 3
             level = 0;
             seqNum = 0;
             n = size(Axy.A,1);
             vtx = 1:1:n;
             sep = [];
             nb = [];
-            nbA = [];
             
             obj.root = obj;
             obj.inputAxy = Axy;
             obj.active = ones(1,n);
         end
         
-        obj.Axy = Axy;
         obj.level = level;
         obj.seqNum = seqNum;
         obj.vtx = vtx;
         obj.sep = sep;
         obj.nb = nb;
-        obj.nbA = nbA;
-        
-        end
-        
-        function obj = BuildTree(obj,method)
-        % BuildTree Build tree structure according to a graph partition algorithm.
         
         if obj.level == 0
             disp("  ");
-            disp(" Start build tree ");
+            disp(" Start initialization ");
+            disp("  ");
+            obj = BuildTree(obj,Axy,minvtx,method);
+            obj = SetNbNode(obj);
+            obj = FillTree(obj,Axy.A);
+            disp("  ");
+            disp(" End initialization ");
             disp("  ");
         end
         
-        minvtx = 16; % Don't separate vertices smaller than this.
+        end
         
-        n = size(obj.Axy.A,1);
+        function obj = BuildTree(obj,Axy,minvtx,method)
+        % BuildTree Build tree structure according to a graph partition algorithm.
+                     
+        n = length(obj.vtx);
         
         if n <= minvtx
             obj.numLevels = obj.level;
@@ -103,54 +110,38 @@ classdef MFGraph < handle
         end
         
         % Partition
-        [p1,p2,sep1,sep2] = GraphPart(obj.Axy,method);
+        tmpAxy.A = Axy.A(obj.vtx,obj.vtx);
+        tmpAxy.xy = Axy.xy(obj.vtx,:);
+        [p1,p2,sep1,sep2] = GraphPart(tmpAxy,method);
         sep1 = unique(sep1);
         sep2 = unique(sep2);
         p = {p1,p2};
         partsep = {sep1,sep2};
-        childAxy(1).A = obj.Axy.A(p1,p1);
-        childAxy(2).A = obj.Axy.A(p2,p2);
-        if ~isempty(obj.Axy.xy)
-            childAxy(1).xy = obj.Axy.xy(p1,:);
-            childAxy(2).xy = obj.Axy.xy(p2,:);
-        else
-            childAxy(1).xy = [];
-            childAxy(2).xy = [];
-        end
         
         % Create children MF.
         for iter = [1,2]
-            obj.children{iter} = MFGraph(childAxy(iter),obj.level+1,obj.seqNum*2+(iter-1),...
-                obj.vtx(p{iter}),obj.vtx(partsep{iter}),obj.vtx(partsep{3-iter}),obj.Axy.A(partsep{iter},partsep{3-iter}));
+            obj.children{iter} = MFGraph(Axy,minvtx,method,obj.level+1,obj.seqNum*2+(iter-1),...
+                obj.vtx(p{iter}),obj.vtx(partsep{iter}),obj.vtx(partsep{3-iter}));
             obj.children{iter}.root = obj.root;
-            obj.children{iter}.parent = obj;
         end
         
         % Pass information to its children.
-        obj = Pass(obj);
-        
-        % Clear information.
-        obj.Axy = [];
-        obj.nbA = [];
+        obj = Pass(obj,Axy.A);
         
         % Recursively buildtree.
         for iter = [1,2]
-            obj.children{iter} = BuildTree(obj.children{iter},method);
+            obj.children{iter} = BuildTree(obj.children{iter},Axy,minvtx,method);
         end
         
         % Get numLevels from children when partition ends.
         obj.numLevels = max(obj.children{1}.numLevels,obj.children{2}.numLevels);
-        
-        if obj.level == 0
-            disp("  ");
-            disp(" End build tree ");
-            disp("  ");
+                
         end
         
-        end
+        function obj = Pass(obj,A)
+        % PASS Send parent's sep, nb to children.
         
-        function obj = Pass(obj)
-        % PASS Send parent's sep, nb, nbA to children.
+        nbA = A(obj.sep,obj.nb);
         
         for i = 1:length(obj.sep)
             sepi = obj.sep(i);
@@ -162,42 +153,29 @@ classdef MFGraph < handle
                 end
                 % Now sepi is a vtx of child.
                 index_sepi_childsep = find(obj_child.sep == sepi,1);
-                num_childnb = length(obj_child.nb);
-                num_childsep = length(obj_child.sep);
                 if ~isempty(index_sepi_childsep)
-                    % Now sepi is a sep of child, we need to pass nb and nbA.
-                    index_addnb_nb = find(obj.nbA(i,:)~=0); % index_addnb_nb is always nonempty!
+                    % Now sepi is a sep of child, we need to pass nb.
+                    index_addnb_nb = find(nbA(i,:)~=0); % index_addnb_nb is always nonempty!
                     for j = 1: length(index_addnb_nb)
-                        addnbj = obj.nb(index_addnb_nb(j)); % addnbj is a neigbor vtx.
+                        addnbj = obj.nb(index_addnb_nb(j)); % addnbj is a neigbour vtx.
                         index_addnbj_childnb = find(obj_child.nb == addnbj,1);
                         % index_addnb_childnb may be nonempty (addnbj has been added).
                         if isempty(index_addnbj_childnb)
-                            % Now addnbj is NOT in child's nb,we need to add nb and nbA.
+                            % Now addnbj is not in child's nb,we need to add nb.
                             obj_child.nb = [obj_child.nb,addnbj];
-                            num_childnb = num_childnb+1;
-                            obj_child.nbA(index_sepi_childsep,num_childnb) = obj.nbA(i,index_addnb_nb(j));
-                        else
-                            % Now addnbj is in child's nb, we only need to add nbA.
-                            obj_child.nbA(index_sepi_childsep,index_addnbj_childnb) = obj.nbA(i,index_addnb_nb(j));
                         end
                     end
                 else
-                    % Now sepi is NOT a sep of child, we need to pass sep,nb and nbA.
+                    % Now sepi is not a sep of child, we need to pass sep,nb and nbA.
                     obj_child.sep = [obj_child.sep,sepi];
-                    num_childsep = num_childsep+1;
-                    index_addnb_nb = find(obj.nbA(i,:)~=0);% index_addnb_nb is always nonempty!
+                    index_addnb_nb = find(nbA(i,:)~=0);% index_addnb_nb is always nonempty!
                     for j = 1: length(index_addnb_nb)
-                        addnbj = obj.nb(index_addnb_nb(j)); % addnbj is a neighbor vtx.
+                        addnbj = obj.nb(index_addnb_nb(j)); % addnbj is a neighbour vtx.
                         index_addnbj_childnb = find(obj_child.nb == addnbj,1);
                         % index_addnb_childnb may be nonempty (addnbj has been added).
                         if isempty(index_addnbj_childnb)
-                            % Now addnbj is NOT in child's nb, we need to add nb and nbA.
+                            % Now addnbj is NOT in child's nb, we need to add nb.
                             obj_child.nb = [obj_child.nb,addnbj];
-                            num_childnb = num_childnb +1;
-                            obj_child.nbA(num_childsep,num_childnb) = obj.nbA(i,index_addnb_nb(j));
-                        else
-                            % Now addnbj is in child's nb, we only need to add nbA.
-                            obj_child.nbA(num_childsep,index_addnbj_childnb) = obj.nbA(i,index_addnb_nb(j));
                         end
                     end
                 end
@@ -246,9 +224,9 @@ classdef MFGraph < handle
                                 obj_child.nbNode{end+1} = nbNodei;
                                 obj_child.nbNodeSeqNum(end+1) = nbNodei.seqNum;
                                 obj_child.nbNodeLevel(end+1) = nbNodei.level;
-                                %                                 nbNodei.nbNode{end+1} = obj_child;
-                                %                                 nbNodei.nbNodeSeqNum(end+1) = obj_child.seqNum;
-                                %                                 nbNodei.nbNodeLevel(end+1) = obj_child.level;
+                                nbNodei.nbNode{end+1} = obj_child;
+                                nbNodei.nbNodeSeqNum(end+1) = obj_child.seqNum;
+                                nbNodei.nbNodeLevel(end+1) = obj_child.level;
                             end
                             break;
                         else
@@ -270,7 +248,7 @@ classdef MFGraph < handle
         
         end
         
-        function obj = FillTree(obj)
+        function obj = FillTree(obj,A)
         % FillTree Fill tree structure with A.
         
         % Sort vtx, sep, nb.
@@ -281,17 +259,16 @@ classdef MFGraph < handle
         if obj.endFlag == 0
             % We only fill the leaf nodes.
             for iter = [1,2]
-                obj.children{iter} = FillTree(obj.children{iter});
+                obj.children{iter} = FillTree(obj.children{iter},A);
             end
         else
             % First, we set int = vtx - sep (only holds on leaf nodes).
             obj.int = setdiff(obj.vtx,obj.sep,'sorted');
             % Then, we set the corresponding A**.
-            rootMF = obj.root;
-            obj.AII = rootMF.inputAxy.A(obj.int,obj.int);
-            obj.ASI = rootMF.inputAxy.A(obj.sep,obj.int);
-            obj.ASS = rootMF.inputAxy.A(obj.sep,obj.sep);
-            obj.ANS = rootMF.inputAxy.A(obj.nb,obj.sep);
+            obj.AII = A(obj.int,obj.int);
+            obj.ASI = A(obj.sep,obj.int);
+            obj.ASS = A(obj.sep,obj.sep);
+            obj.ANS = A(obj.nb,obj.sep);
         end
         
         end

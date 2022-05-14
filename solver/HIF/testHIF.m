@@ -15,6 +15,7 @@ if exist("xy")
 else
     Axy.xy = [];
 end
+minvtx = 16;
 method = "metis";
 % method = "meshpart_specpart";
 % method = "meshpart_geopart";
@@ -23,12 +24,9 @@ demoHIF = 0;
 
 %% HIF process.
 % profile on
-HIF = HIFGraph(Axy);
-HIF = BuildTree(HIF,method);
-HIF = SetNbNode(HIF);
+HIF = HIFGraph(Axy,minvtx,method);
 % DemoPart(HIF)
 % DemoFinalPart(HIF);
-HIF = FillTree(HIF);
 HIF = Factorization(HIF,tol,demoHIF);
 % profile viewer
 % profsave(profile('info'),'profile_HIF')

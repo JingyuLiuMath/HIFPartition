@@ -15,6 +15,7 @@ if exist("xy")
 else
     Axy.xy = [];
 end
+minvtx = 16;
 method = "metis";
 % method = "meshpart_specpart";
 % method = "meshpart_geopart";
@@ -22,12 +23,9 @@ demoMF = 0;
 
 %% MF process.
 % profile on
-MF = MFGraph(Axy);
-MF = BuildTree(MF,method);
-MF = SetNbNode(MF);
+MF = MFGraph(Axy,minvtx,method);
 % DemoPart(MF)
 % DemoFinalPart(MF);
-MF = FillTree(MF);
 MF = Factorization(MF,demoMF);
 % profile viewer
 % profsave(profile('info'),'profile_MF')
