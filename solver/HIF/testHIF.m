@@ -36,9 +36,9 @@ HIF = Factorization(HIF,tol,demoHIF);
 %% Solve linear systems.
 x = rand(size(A,1),1);
 b = A*x;
-HIF = HIFSolve(HIF,b);
+xsol = HIFSolve(HIF,b);
 disp(" Relative error:")
-disp(norm(HIF.solution - x)/norm(x))
+disp(norm(xsol - x)/norm(x))
 
 %% Solve Ainv.
 I = eye(size(A,1));

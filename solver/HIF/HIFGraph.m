@@ -9,10 +9,7 @@ classdef HIFGraph < handle
         
         inputAxy; % Input Axy.
         active; % Whether a vertex is eliminated.
-        inputVec; % Input vector (We admit a matrix input which will be treated by its columns).
-        solution; % Solution.
         demoHIF = 0; % Whether to demo the HIF process.
-        inputVecWidth; % Input vector's width.
         
         % Graph properties.
         
@@ -777,15 +774,12 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = HIFSolve(obj,b)
+        function x = HIFSolve(obj,b)
         % HIFSolve Solve Ax = b through HIF.
         
         disp("  ");
         disp(" Start solve ");
         disp("  ");
-        
-        obj.inputVec = b;
-        obj.inputVecWidth = size(b,2);
         
         obj = BuildVecTree(obj,b);
         
@@ -803,11 +797,11 @@ classdef HIFGraph < handle
             obj = RecursiveApplySparseElimDown(obj,tmplevel);
         end
         
-        obj = GetSolution(obj);
+        x = zeros(size(b));
+        x = GetSolution(obj,x);
         
         disp("  ");
         disp(" End solve ");
-        disp(" The solution is stored in obj.solution.");
         disp("  ");
         
         end
@@ -951,13 +945,14 @@ classdef HIFGraph < handle
         end
         
         % We only need to assign the corresponding vectors.
+        width = size(obj.children{1}.xS,2);
         
-        obj.xI = zeros(length(obj.int),obj.root.inputVecWidth);
+        obj.xI = zeros(length(obj.int),width);
         for iter = [1,2]
             obj.xI(obj.indexInfo(iter).myindex_int,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_int,:);
         end
         
-        obj.xS = zeros(length(obj.sep),obj.root.inputVecWidth);
+        obj.xS = zeros(length(obj.sep),width);
         for iter = [1,2]
             obj.xS(obj.indexInfo(iter).myindex_sep,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep,:);
         end
@@ -1094,20 +1089,16 @@ classdef HIFGraph < handle
         
         end
         
-        function obj = GetSolution(obj)
+        function x = GetSolution(obj,x)
         % GetSolution Get the final soluion through the tree structure.
-        
-        if obj.level == 0
-            obj.solution = zeros(length(obj.int),obj.root.inputVecWidth);
-        end
-        
+                
         if obj.endFlag == 0
             for iter = [1,2]
-                obj.children{iter} = GetSolution(obj.children{iter});
+                x = GetSolution(obj.children{iter},x);
             end
         else
-            obj.root.solution(obj.int,:) = obj.xI;
-            obj.root.solution(obj.sep,:) = obj.xS;
+            x(obj.int,:) = obj.xI;
+            x(obj.sep,:) = obj.xS;
         end
         
         end
