@@ -340,7 +340,7 @@ classdef MFGraph < handle
         end
         
         function obj = RecursiveMerge(obj,whatlevel)
-        % RecursiveMerge Recusively send information from children to parent.
+        % RecursiveMerge Recusively send matrices' information from children to parent.
         
         if obj.level == whatlevel
             obj = Merge(obj);
