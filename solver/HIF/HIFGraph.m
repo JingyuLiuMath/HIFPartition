@@ -427,6 +427,7 @@ classdef HIFGraph < handle
             % mysep1C(start:start+length(obj.complexsep)-1) = obj.complexsep;
             % mysep1C = mysep1C(mysep1C > 0);
             mysep1C = [mysep1C,obj.complexsep];
+            mysep1C = sort(mysep1C);
             nodeksep1C = setdiff(nodek.nb,sep1,'sorted');
             
             korder = find(nodek.nbNodeSeqNum == obj.seqNum);
@@ -451,6 +452,7 @@ classdef HIFGraph < handle
             % nodeksep2C(start:start+length(nodek.complexsep)-1) = nodek.complexsep;
             % nodeksep2C = nodeksep2C(nodeksep2C > 0);
             nodeksep2C = [nodeksep2C,nodek.complexsep];
+            nodeksep2C = sort(nodeksep2C);
             mysep2C = setdiff(obj.nb,sep2,'sorted');
             
             % The following data are indices.
