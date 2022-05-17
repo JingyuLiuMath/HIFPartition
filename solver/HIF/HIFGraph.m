@@ -117,7 +117,9 @@ classdef HIFGraph < handle
         
         % Partition
         tmpAxy.A = Axy.A(obj.vtx,obj.vtx);
-        tmpAxy.xy = Axy.xy(obj.vtx,:);
+        if ~isempty(Axy.xy)
+            tmpAxy.xy = Axy.xy(obj.vtx,:);
+        end
         [p1,p2,sep1,sep2] = GraphPart(tmpAxy,method);
         sep1 = unique(sep1);
         sep2 = unique(sep2);
