@@ -536,7 +536,7 @@ classdef MFGraph < handle
         end
         
         function obj = ApplySparseElimUp(obj)
-        %ApplySparseElimUp Phase 1 for applying sparse elimination.
+        % ApplySparseElimUp Phase 1 for applying sparse elimination.
         
         % xS = xS - (AII^{-1} * ASI^{T})^{T} * xI.
         obj.xS = obj.xS - obj.AIIinvAIS'*obj.xI;
@@ -577,7 +577,7 @@ classdef MFGraph < handle
         
         % xI.
         % An int of the parent only belongs to the sep of one of its
-        % children. We get xI from the children's xS.
+        % children. We assign xI from the child's xS.
         obj.xI = zeros(length(obj.int),width);
         for iter = [1,2]
             obj.xI(obj.indexInfo(iter).myindex_int,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_int,:);
@@ -585,7 +585,7 @@ classdef MFGraph < handle
         
         % xS.
         % A sep of the parent only belongs to the sep of one of its
-        % children. We get xS from the children's xS.
+        % children. We assign xS from the child's xS.
         obj.xS = zeros(length(obj.sep),width);
         for iter = [1,2]
             obj.xS(obj.indexInfo(iter).myindex_sep,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep,:);
@@ -658,7 +658,7 @@ classdef MFGraph < handle
         function obj = ApplySparseElimDown(obj)
         % ApplySparseElimDown Phase 2 for applying sparse elimination.
         
-        % xI = LI^{-T} * xI - (AII^{-1} * ASI^{T})^{T} * xS.
+        % xI = LI^{-T} * xI - (AII^{-1} * ASI^{T}) * xS.
         obj.xI = obj.LI'\obj.xI - obj.AIIinvAIS*obj.xS;
         
         end
