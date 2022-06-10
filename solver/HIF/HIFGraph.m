@@ -1141,7 +1141,7 @@ classdef HIFGraph < handle
         
         if obj.level == 0
             n = size(obj.inputAxy.xy,1);
-            map = ones(1,n);
+            map = zeros(1,n);
         end
         
         if obj.level == whatlevel || obj.endFlag == 1
