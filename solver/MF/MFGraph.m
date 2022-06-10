@@ -751,7 +751,7 @@ classdef MFGraph < handle
         end
         
         if obj.level == whatlevel || obj.endFlag == 1
-            map(obj.vtx) = obj.seqNum;
+            map(obj.vtx) = max(map)+1;
             return;
         else
             for iter = [1,2]
