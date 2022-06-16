@@ -20,16 +20,16 @@ classdef MFGraph < handle
         
         % Tree properties.
         
-        numLevels; % Total number of levels.
+        numlevels; % Total number of levels.
         level; % Current level, start from 0.
-        seqNum; % A node's order in its level.
-        endFlag = 0; % Whether the partition ends.
+        seqnum; % A node's order in its level.
+        endflag = 0; % Whether the partition ends.
         children = cell(1,2); % Children nodes.
-        nbNode = {}; % Neighbor nodes. In fact, we don't need this in MF.
-        nbNodeSeqNum = []; % Neighbor nodes's seqNum.
-        nbNodeLevel = []; % Neighbor nodes's level.
+        nbnode = {}; % Neighbor nodes. In fact, we don't need this in MF.
+        nbnodeseqnum = []; % Neighbor nodes's seqnum.
+        nbnodelevel = []; % Neighbor nodes's level.
         root; % Root node.
-        indexInfo = struct([]); % Index information when merge and split.
+        indexinfo = struct([]); % Index information when merge and split.
         
         % Matrices properties.
         
@@ -53,7 +53,7 @@ classdef MFGraph < handle
     
     methods
         
-        function obj = MFGraph(Axy,minvtx,method,level,seqNum,vtx,sep,nb)
+        function obj = MFGraph(Axy,minvtx,method,level,seqnum,vtx,sep,nb)
         % MFGraph Create a MF class.
         
         if nargin == 1
@@ -67,7 +67,7 @@ classdef MFGraph < handle
         
         if nargin <= 3
             level = 0;
-            seqNum = 0;
+            seqnum = 0;
             n = size(Axy.A,1);
             vtx = 1:1:n;
             sep = [];
@@ -79,7 +79,7 @@ classdef MFGraph < handle
         end
         
         obj.level = level;
-        obj.seqNum = seqNum;
+        obj.seqnum = seqnum;
         obj.vtx = vtx;
         obj.sep = sep;
         obj.nb = nb;
@@ -89,7 +89,7 @@ classdef MFGraph < handle
             disp(" Start initialization ");
             disp("  ");
             obj = BuildTree(obj,Axy,minvtx,method);
-            obj = SetNbNode(obj);
+            obj = SetNeighborNode(obj);
             obj = FillTree(obj,Axy.A);
             disp("  ");
             disp(" End initialization ");
@@ -104,8 +104,8 @@ classdef MFGraph < handle
         n = length(obj.vtx);
         
         if n <= minvtx
-            obj.numLevels = obj.level;
-            obj.endFlag = 1;
+            obj.numlevels = obj.level;
+            obj.endflag = 1;
             return
         end
         
@@ -122,26 +122,26 @@ classdef MFGraph < handle
         
         % Create children MF.
         for iter = [1,2]
-            obj.children{iter} = MFGraph(Axy,minvtx,method,obj.level+1,obj.seqNum*2+(iter-1),...
+            obj.children{iter} = MFGraph(Axy,minvtx,method,obj.level+1,obj.seqnum*2+(iter-1),...
                 obj.vtx(p{iter}),obj.vtx(partsep{iter}),obj.vtx(partsep{3-iter}));
             obj.children{iter}.root = obj.root;
         end
         
         % Pass information to its children.
-        obj = Pass(obj,Axy.A);
+        obj = PassSeparatorNeighbor(obj,Axy.A);
         
         % Recursively buildtree.
         for iter = [1,2]
             obj.children{iter} = BuildTree(obj.children{iter},Axy,minvtx,method);
         end
         
-        % Get numLevels from children when partition ends.
-        obj.numLevels = max(obj.children{1}.numLevels,obj.children{2}.numLevels);
+        % Get numlevels from children when partition ends.
+        obj.numlevels = max(obj.children{1}.numlevels,obj.children{2}.numlevels);
                 
         end
         
-        function obj = Pass(obj,A)
-        % PASS Send parent's sep, nb to children.
+        function obj = PassSeparatorNeighbor(obj,A)
+        % PassSeparatorNeighbor Send parent's sep, nb to children.
         
         nbA = A(obj.sep,obj.nb);
         
@@ -155,30 +155,17 @@ classdef MFGraph < handle
                 end
                 % Now sepi is a vtx of child.
                 index_sepi_childsep = find(obj_child.sep == sepi,1);
-                if ~isempty(index_sepi_childsep)
-                    % Now sepi is a sep of child, we need to pass nb.
-                    index_addnb_nb = find(nbA(i,:)~=0); % index_addnb_nb is always nonempty!
-                    for j = 1: length(index_addnb_nb)
-                        addnbj = obj.nb(index_addnb_nb(j)); % addnbj is a neigbour vtx.
-                        index_addnbj_childnb = find(obj_child.nb == addnbj,1);
-                        % index_addnb_childnb may be nonempty (addnbj has been added).
-                        if isempty(index_addnbj_childnb)
-                            % Now addnbj is not in child's nb,we need to add nb.
-                            obj_child.nb = [obj_child.nb,addnbj];
-                        end
-                    end
-                else
-                    % Now sepi is not a sep of child, we need to pass sep,nb and nbA.
+                if isempty(index_sepi_childsep)
                     obj_child.sep = [obj_child.sep,sepi];
-                    index_addnb_nb = find(nbA(i,:)~=0);% index_addnb_nb is always nonempty!
-                    for j = 1: length(index_addnb_nb)
-                        addnbj = obj.nb(index_addnb_nb(j)); % addnbj is a neighbour vtx.
-                        index_addnbj_childnb = find(obj_child.nb == addnbj,1);
-                        % index_addnb_childnb may be nonempty (addnbj has been added).
-                        if isempty(index_addnbj_childnb)
-                            % Now addnbj is NOT in child's nb, we need to add nb.
-                            obj_child.nb = [obj_child.nb,addnbj];
-                        end
+                end
+                index_addnb_nb = find(nbA(i,:)~=0);% index_addnb_nb is always nonempty!
+                for j = 1: length(index_addnb_nb)
+                    addnbj = obj.nb(index_addnb_nb(j)); % addnbj is a neighbour vtx.
+                    index_addnbj_childnb = find(obj_child.nb == addnbj,1);
+                    % index_addnb_childnb may be nonempty (addnbj has been added).
+                    if isempty(index_addnbj_childnb)
+                        % Now addnbj is NOT in child's nb, we need to add nb.
+                        obj_child.nb = [obj_child.nb,addnbj];
                     end
                 end
             end
@@ -186,56 +173,56 @@ classdef MFGraph < handle
         
         end
         
-        function obj = SetNbNode(obj)
-        % SetNbNode Set nbNode.
+        function obj = SetNeighborNode(obj)
+        % SetNeighborNode Set nbnode.
         
-        % We stand on the parent level to assign its children's nbNode.
-        if obj.endFlag == 1
+        % We stand on the parent level to assign its children's nbnode.
+        if obj.endflag == 1
             return;
         end
         
         for iter = [1,2]
             obj_child = obj.children{iter};
-            obj_child.nbNode{end+1} = obj.children{3-iter};
-            obj_child.nbNodeSeqNum(end+1) = obj.children{3-iter}.seqNum;
-            obj_child.nbNodeLevel(end+1) = obj.children{3-iter}.level;
-            % We only need to find nbNode from the children node of
-            % parent's nbNode or parent's nbNode if it doesn't have a
+            obj_child.nbnode{end+1} = obj.children{3-iter};
+            obj_child.nbnodeseqnum(end+1) = obj.children{3-iter}.seqnum;
+            obj_child.nbnodelevel(end+1) = obj.children{3-iter}.level;
+            % We only need to find nbnode from the children node of
+            % parent's nbnode or parent's nbnode if it doesn't have a
             % child.
-            if ~isempty(obj.nbNode)
-                for i = 1:length(obj.nbNode)
-                    nbNodei = obj.nbNode{i};
-                    % What we need is to check whether the vtx of nbNodei's
+            if ~isempty(obj.nbnode)
+                for i = 1:length(obj.nbnode)
+                    nbnodei = obj.nbnode{i};
+                    % What we need is to check whether the vtx of nbnodei's
                     % chilren is in the nb of obj_child.
                     for it = [1,2]
-                        nbNodei_child = nbNodei.children{it};
-                        if isempty(nbNodei_child)
-                            % The nbNodei doesn't have a child. We should
-                            % look it as a nbNode.
-                            if ~isempty(intersect(obj_child.nb,nbNodei.vtx))
-                                % NOTE: We have to avoid add one's ancestor as its nbNode.
-                                dlevel = obj_child.level - nbNodei.level;
-                                myseqnum = obj_child.seqNum;
+                        nbnodei_child = nbnodei.children{it};
+                        if isempty(nbnodei_child)
+                            % The nbnodei doesn't have a child. We should
+                            % look it as a nbnode.
+                            if ~isempty(intersect(obj_child.nb,nbnodei.vtx))
+                                % NOTE: We have to avoid add one's ancestor as its nbnode.
+                                dlevel = obj_child.level - nbnodei.level;
+                                myseqnum = obj_child.seqnum;
                                 for k = 1:dlevel
                                     myseqnum = floor(myseqnum/2);
                                 end
-                                if myseqnum == nbNodei.seqNum
+                                if myseqnum == nbnodei.seqnum
                                     break;
                                 end
                                 
-                                obj_child.nbNode{end+1} = nbNodei;
-                                obj_child.nbNodeSeqNum(end+1) = nbNodei.seqNum;
-                                obj_child.nbNodeLevel(end+1) = nbNodei.level;
-                                nbNodei.nbNode{end+1} = obj_child;
-                                nbNodei.nbNodeSeqNum(end+1) = obj_child.seqNum;
-                                nbNodei.nbNodeLevel(end+1) = obj_child.level;
+                                obj_child.nbnode{end+1} = nbnodei;
+                                obj_child.nbnodeseqnum(end+1) = nbnodei.seqnum;
+                                obj_child.nbnodelevel(end+1) = nbnodei.level;
+                                nbnodei.nbnode{end+1} = obj_child;
+                                nbnodei.nbnodeseqnum(end+1) = obj_child.seqnum;
+                                nbnodei.nbnodelevel(end+1) = obj_child.level;
                             end
                             break;
                         else
-                            if ~isempty(intersect(obj_child.nb, nbNodei_child.vtx))
-                                obj_child.nbNode{end+1} = nbNodei_child;
-                                obj_child.nbNodeSeqNum(end+1) = nbNodei_child.seqNum;
-                                obj_child.nbNodeLevel(end+1) = nbNodei_child.level;
+                            if ~isempty(intersect(obj_child.nb, nbnodei_child.vtx))
+                                obj_child.nbnode{end+1} = nbnodei_child;
+                                obj_child.nbnodeseqnum(end+1) = nbnodei_child.seqnum;
+                                obj_child.nbnodelevel(end+1) = nbnodei_child.level;
                             end
                         end
                     end
@@ -245,7 +232,7 @@ classdef MFGraph < handle
         
         % Recursively setNbNode.
         for iter = [1,2]
-            obj.children{iter} = SetNbNode(obj.children{iter});
+            obj.children{iter} = SetNeighborNode(obj.children{iter});
         end
         
         end
@@ -258,7 +245,7 @@ classdef MFGraph < handle
         obj.sep = sort(obj.sep);
         obj.nb = sort(obj.nb);
         
-        if obj.endFlag == 0
+        if obj.endflag == 0
             % We only fill the leaf nodes.
             for iter = [1,2]
                 obj.children{iter} = FillTree(obj.children{iter},A);
@@ -286,7 +273,7 @@ classdef MFGraph < handle
         disp(" Start factorization ");
         disp("  ");
         
-        for tmplevel = obj.numLevels:-1:1
+        for tmplevel = obj.numlevels:-1:1
             % Sparse elimination.
             obj = RecursiveSparseElim(obj,tmplevel);
             % Demo the process.
@@ -316,7 +303,7 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = SparseElim(obj);
         else
-            if obj.endFlag == 0
+            if obj.endflag == 0
                 for iter = [1,2]
                     obj.children{iter} = RecursiveSparseElim(obj.children{iter},whatlevel);
                 end
@@ -347,7 +334,7 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = Merge(obj);
         else
-            if obj.endFlag == 0
+            if obj.endflag == 0
                 for iter = [1,2]
                     obj.children{iter} = RecursiveMerge(obj.children{iter},whatlevel);
                 end
@@ -361,7 +348,7 @@ classdef MFGraph < handle
         
         % We stand on the parent level.
         
-        if obj.endFlag == 1
+        if obj.endflag == 1
             return;
         end
         
@@ -392,10 +379,10 @@ classdef MFGraph < handle
         [int2,myindex_int2,~] = intersect(obj.int,obj.children{2}.vtx);
         [~,cindex_int2] = ismember(int2,obj.children{2}.sep);
         [~,myindex_int21,cindex_int21] = intersect(obj.int,obj.children{1}.nb);
-        obj.indexInfo(1).myindex_int = myindex_int1;
-        obj.indexInfo(1).cindex_int = cindex_int1;
-        obj.indexInfo(2).myindex_int = myindex_int2;
-        obj.indexInfo(2).cindex_int = cindex_int2;
+        obj.indexinfo(1).myindex_int = myindex_int1;
+        obj.indexinfo(1).cindex_int = cindex_int1;
+        obj.indexinfo(2).myindex_int = myindex_int2;
+        obj.indexinfo(2).cindex_int = cindex_int2;
         obj.AII(myindex_int1,myindex_int1) = obj.children{1}.ASS(cindex_int1,cindex_int1);
         obj.AII(myindex_int2,myindex_int2) = obj.children{2}.ASS(cindex_int2,cindex_int2);
         obj.AII(myindex_int21,myindex_int1) = obj.children{1}.ANS(cindex_int21,cindex_int1);
@@ -425,10 +412,10 @@ classdef MFGraph < handle
         [sep2,myindex_sep2,~] = intersect(obj.sep,obj.children{2}.vtx);
         [~,cindex_sep2] = ismember(sep2,obj.children{2}.sep);
         [~,myindex_sep21,cindex_sep21] = intersect(obj.sep,obj.children{1}.nb);
-        obj.indexInfo(1).myindex_sep = myindex_sep1;
-        obj.indexInfo(1).cindex_sep = cindex_sep1;
-        obj.indexInfo(2).myindex_sep = myindex_sep2;
-        obj.indexInfo(2).cindex_sep = cindex_sep2;
+        obj.indexinfo(1).myindex_sep = myindex_sep1;
+        obj.indexinfo(1).cindex_sep = cindex_sep1;
+        obj.indexinfo(2).myindex_sep = myindex_sep2;
+        obj.indexinfo(2).cindex_sep = cindex_sep2;
         obj.ASS(myindex_sep1,myindex_sep1) = obj.children{1}.ASS(cindex_sep1,cindex_sep1);
         obj.ASS(myindex_sep2,myindex_sep2) = obj.children{2}.ASS(cindex_sep2,cindex_sep2);
         obj.ASS(myindex_sep21,myindex_sep1) = obj.children{1}.ANS(cindex_sep21,cindex_sep1);
@@ -475,14 +462,14 @@ classdef MFGraph < handle
         
         obj = BuildVecTree(obj,b);
         
-        for tmplevel = obj.numLevels:-1:1
+        for tmplevel = obj.numlevels:-1:1
             obj = RecursiveApplySparseElimUp(obj,tmplevel);
             obj = RecursiveApplyMerge(obj,tmplevel-1);
         end
         
         obj = RootApply(obj);
         
-        for tmplevel = 1:1:obj.numLevels
+        for tmplevel = 1:1:obj.numlevels
             obj = RecursiveApplySplit(obj,tmplevel-1);
             obj = RecursiveApplySparseElimDown(obj,tmplevel);
         end
@@ -505,7 +492,7 @@ classdef MFGraph < handle
             disp("  ");
         end
         
-        if obj.endFlag == 0
+        if obj.endflag == 0
             for iter = [1,2]
                 obj.children{iter} = BuildVecTree(obj.children{iter},b);
             end
@@ -528,7 +515,7 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = ApplySparseElimUp(obj);
         else
-            if obj.endFlag == 0
+            if obj.endflag == 0
                 for iter = [1,2]
                     obj.children{iter} = RecursiveApplySparseElimUp(obj.children{iter},whatlevel);
                 end
@@ -556,7 +543,7 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = ApplyMerge(obj);
         else
-            if obj.endFlag == 0
+            if obj.endflag == 0
                 for iter = [1,2]
                     obj.children{iter} = RecursiveApplyMerge(obj.children{iter},whatlevel);
                 end
@@ -570,7 +557,7 @@ classdef MFGraph < handle
         
         % We stand on the parent level.
         
-        if obj.endFlag == 1
+        if obj.endflag == 1
             return;
         end
         
@@ -582,7 +569,7 @@ classdef MFGraph < handle
         % children. We assign xI from the child's xS.
         obj.xI = zeros(length(obj.int),width);
         for iter = [1,2]
-            obj.xI(obj.indexInfo(iter).myindex_int,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_int,:);
+            obj.xI(obj.indexinfo(iter).myindex_int,:) = obj.children{iter}.xS(obj.indexinfo(iter).cindex_int,:);
         end
         
         % xS.
@@ -590,7 +577,7 @@ classdef MFGraph < handle
         % children. We assign xS from the child's xS.
         obj.xS = zeros(length(obj.sep),width);
         for iter = [1,2]
-            obj.xS(obj.indexInfo(iter).myindex_sep,:) = obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep,:);
+            obj.xS(obj.indexinfo(iter).myindex_sep,:) = obj.children{iter}.xS(obj.indexinfo(iter).cindex_sep,:);
         end
         
         end
@@ -615,7 +602,7 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = ApplySplit(obj);
         else
-            if obj.endFlag == 0
+            if obj.endflag == 0
                 for iter = [1,2]
                     obj.children{iter} = RecursiveApplySplit(obj.children{iter},whatlevel);
                 end
@@ -629,15 +616,15 @@ classdef MFGraph < handle
         
         % We stand on the parent level.
         
-        if obj.endFlag == 1
+        if obj.endflag == 1
             return;
         end
         
         % We only need to assign the corresponding vectors of the children.
         
         for iter = [1,2]
-            obj.children{iter}.xS(obj.indexInfo(iter).cindex_int,:) = obj.xI(obj.indexInfo(iter).myindex_int,:);
-            obj.children{iter}.xS(obj.indexInfo(iter).cindex_sep,:) = obj.xS(obj.indexInfo(iter).myindex_sep,:);
+            obj.children{iter}.xS(obj.indexinfo(iter).cindex_int,:) = obj.xI(obj.indexinfo(iter).myindex_int,:);
+            obj.children{iter}.xS(obj.indexinfo(iter).cindex_sep,:) = obj.xS(obj.indexinfo(iter).myindex_sep,:);
         end
         
         end
@@ -648,7 +635,7 @@ classdef MFGraph < handle
         if obj.level == whatlevel
             obj = ApplySparseElimDown(obj);
         else
-            if obj.endFlag == 0
+            if obj.endflag == 0
                 for iter = [1,2]
                     obj.children{iter} = RecursiveApplySparseElimDown(obj.children{iter},whatlevel);
                 end
@@ -668,7 +655,7 @@ classdef MFGraph < handle
         function x = GetSolution(obj,x)
         % GetSolution Get the final soluion through the tree structure.
         
-        if obj.endFlag == 0
+        if obj.endflag == 0
             for iter = [1,2]
                 x = GetSolution(obj.children{iter},x);
             end
@@ -696,13 +683,13 @@ classdef MFGraph < handle
         disp(" Hit space to continue ... ");
         disp("  ");
         
-        for tmplevel = 0:obj.numLevels
+        for tmplevel = 0:obj.numlevels
             disp(" Current level: " + tmplevel);
             disp("  ");
             
             map = GetPartMap(obj,tmplevel);
             gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
-            if tmplevel ~= obj.numLevels
+            if tmplevel ~= obj.numlevels
                 disp(" Hit space to continue ... ");
             else
                 disp(" Hit space to end ... ");
@@ -750,7 +737,7 @@ classdef MFGraph < handle
             map = zeros(1,n);
         end
         
-        if obj.level == whatlevel || obj.endFlag == 1
+        if obj.level == whatlevel || obj.endflag == 1
             map(obj.vtx) = max(map)+1;
             return;
         else
@@ -778,7 +765,7 @@ classdef MFGraph < handle
         disp(" Hit space to continue ... ");
         disp("  ");
         pause;
-        map = GetPartMap(obj,obj.numLevels);
+        map = GetPartMap(obj,obj.numlevels);
         gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
         disp(" Hit space to end ... ");
         disp("  ");
@@ -791,7 +778,7 @@ classdef MFGraph < handle
         
         assert(~isempty(obj.inputAxy.xy), "Need coordinates!")
         
-        if whatlevel == obj.numLevels
+        if whatlevel == obj.numlevels
             DemoFinalPart(obj);
         end
         
@@ -824,10 +811,10 @@ classdef MFGraph < handle
         end
         
         if obj.level == 0
-            levelVec = zeros(obj.numLevels,1);
+            levelVec = zeros(obj.numlevels,1);
         end
         
-        if obj.endFlag == 1
+        if obj.endflag == 1
             levelVec(obj.level) = levelVec(obj.level) + 1;
             return;
         else
