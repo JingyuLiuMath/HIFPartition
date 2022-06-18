@@ -19,6 +19,7 @@ classdef HIFGraph < handle
         int; % Interior vertices.
         re; % Redundant sep. We also use check (c) to reprsent it.
         sk; % Skeleton sep. We also use hat (h) to represent it.
+        nbsk; % Skeleton nb.
         nbre; % Redundant nb.
         singlesep = {}; % Sep which only interact with one node.
         complexsep; % Sep which interact with more than one nodes.
@@ -588,6 +589,7 @@ classdef HIFGraph < handle
         obj.re = sort(obj.re);
         obj.sk = setdiff(obj.sep,obj.re,'sorted');
         obj.nbre = sort(obj.nbre);
+        obj.nbsk = setdiff(obj.nb,obj.nbre,'sorted');
         
         end
         
@@ -595,6 +597,7 @@ classdef HIFGraph < handle
         % NoSkel No skeletonization.
         
         obj.sk = obj.sep;
+        obj.nbsk = obj.nb;
         
         end
         
@@ -626,16 +629,15 @@ classdef HIFGraph < handle
         % eliminate the children's vtx.
         % int: children's sk - sep.
         % sep: sep \cup children's sk.
-        % nb: nb - children's nbre.
+        % nb: nb \cup children's nbsk.
+        tmp = [];
         for iter = [1,2]
             obj.int = [obj.int,obj.children{iter}.sk];
-            obj.re = [obj.re,obj.children{iter}.re];
-            obj.nbre = [obj.nbre,obj.children{iter}.nbre];
+            tmp = [tmp,obj.children{iter}.nbsk];
         end
         obj.sep = intersect(obj.sep,obj.int,'sorted');
-        obj.nbre = setdiff(obj.nbre,obj.vtx);
         obj.int = setdiff(obj.int,obj.sep,'sorted');
-        obj.nb = setdiff(obj.nb,obj.nbre,'sorted');
+        obj.nb = intersect(obj.nb,tmp,'sorted');
         
         
         % Next we assign the corresponding matrices.
