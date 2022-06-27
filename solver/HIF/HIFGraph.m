@@ -261,10 +261,10 @@ classdef HIFGraph < handle
             % First, we set int = vtx - sep (only holds on leaf nodes).
             obj.int = setdiff(obj.vtx,obj.sep,'sorted');
             % Then, we set the corresponding A**.
-            obj.AII = A(obj.int,obj.int);
-            obj.ASI = A(obj.sep,obj.int);
-            obj.ASS = A(obj.sep,obj.sep);
-            obj.ANS = A(obj.nb,obj.sep);
+            obj.AII = full(A(obj.int,obj.int));
+            obj.ASI = full(A(obj.sep,obj.int));
+            obj.ASS = full(A(obj.sep,obj.sep));
+            obj.ANS = full(A(obj.nb,obj.sep));
             
             % Set sep type.
             obj = SetSepType(obj);

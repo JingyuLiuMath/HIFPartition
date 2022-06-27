@@ -8,7 +8,6 @@
 [A,xy] = gridt(32);
 
 %% Basic settings.
-A = full(A);
 Axy.A = A;
 if exist("xy")
     Axy.xy = xy;
