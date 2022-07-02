@@ -322,6 +322,8 @@ classdef HIFGraph < handle
             end
             % Merge.
             obj = RecursiveMerge(obj,tmplevel-1);
+            % SetSepType.
+            obj = RecursiveSetSepType(obj,tmplevel-1);
         end
         
         % Root factorization.
@@ -714,9 +716,21 @@ classdef HIFGraph < handle
         for iter = [1,2]
             obj.children{iter} = HIFClear(obj.children{iter});
         end
+                
+        end
         
-        % Set sep type.
-        obj = SetSepType(obj);
+        function obj = RecursiveSetSepType(obj,whatlevel)
+        % RecursiveSetSepType Recusively set sep type.
+        
+        if obj.level == whatlevel
+            obj = SetSepType(obj);
+        else
+            if obj.endflag == 0
+                for iter = [1,2]
+                    obj.children{iter} = RecursiveSetSepType(obj.children{iter},whatlevel);
+                end
+            end
+        end
         
         end
         
