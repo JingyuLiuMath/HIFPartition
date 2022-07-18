@@ -14,7 +14,7 @@ if exist("xy")
 else
     Axy.xy = [];
 end
-minvtx = 16;
+minvtx = 64;
 method = "metis";
 % method = "meshpart_specpart";
 % method = "meshpart_geopart";

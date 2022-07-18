@@ -4,29 +4,25 @@ classdef HIFGraph < handle
     properties
         
         % Root properties.
-        
         % The following information will be stored only in the root node.
-        
         inputAxy; % Input Axy.
         active; % Whether a vertex is eliminated.
         demoHIF = 0; % Whether to demo the HIF process.
         
         % Graph properties.
-        
-        vtx; % Vertices on the graph.
+        vtx; % Vertices.
         sep; % Separator vertices.
         nb; % Neighbor vertices.
         int; % Interior vertices.
-        re; % Redundant sep. We also use check (c) to reprsent it.
         sk; % Skeleton sep. We also use hat (h) to represent it.
+        re; % Redundant sep. We also use check (c) to reprsent it.
         nbsk; % Skeleton nb.
         nbre; % Redundant nb.
         singlesep = {}; % Sep which only interact with one node.
-        complexsep; % Sep which interact with more than one nodes.
+        complexsep; % Sep which interact with more than one node.
         
         % Tree properties.
-        
-        numlevels; % Total number of levels.
+        numlevels; % The highest level in current subtree.
         level; % Current level, start from 0.
         seqnum; % A node's order in its level.
         endflag = 0; % Whether the partition ends.
@@ -36,13 +32,11 @@ classdef HIFGraph < handle
         nbnodelevel = []; % Neighbor nodes' level.
         root; % Root node.
         nbinfo = struct([]); % Information between a node and its nbnode when skeletonization.
-        indexinfo = struct([]); % Index information when merge and split.
+        indexinfo = struct([]); % Index information of a node and its children.
         
-        % Matrices properties.
-        
+        % Matrices properties.    
         % For the following matrices, the fist index is row, and the second
         % index is col.
-        
         AII; % Interaction between int and int.
         ASI; % Interaction between sep and int.
         ASS; % Interaction between sep and sep.
@@ -52,7 +46,6 @@ classdef HIFGraph < handle
         AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
         
         % Vectors properties.
-        
         xI; % The int part of a vector x.
         xS; % The sep part of a vector x.
         
@@ -64,7 +57,7 @@ classdef HIFGraph < handle
         % HIFGraph Create a HIF class.
         
         if nargin == 1
-            minvtx = 16;
+            minvtx = 64;
             method = "metis";
         end
         
@@ -122,8 +115,8 @@ classdef HIFGraph < handle
             tmpAxy.xy = Axy.xy(obj.vtx,:);
         end
         [p1,p2,sep1,sep2] = GraphPart(tmpAxy,method);
-        sep1 = unique(sep1);
-        sep2 = unique(sep2);
+        % sep1 = unique(sep1);
+        % sep2 = unique(sep2);
         p = {p1,p2};
         partsep = {sep1,sep2};
         
@@ -201,22 +194,20 @@ classdef HIFGraph < handle
                     nbnodei = obj.nbnode{i};
                     % What we need is to check whether the vtx of nbnodei's
                     % chilren is in the nb of obj_child.
-                    for it = [1,2]
-                        nbnodei_child = nbnodei.children{it};
-                        if isempty(nbnodei_child)
-                            % The nbnodei doesn't have a child. We should
-                            % look it as a nbnode.
+                    if nbnodei.endflag == 1
+                        % The nbnodei doesn't have a child. We should look 
+                        % it as a nbnode.
                             if ~isempty(intersect(obj_child.nb,nbnodei.vtx))
-                                % NOTE: We have to avoid add one's ancestor as its nbnode.
+                                % NOTE: We have to avoid add one's ancestor 
+                                % as its nbnode.
                                 dlevel = obj_child.level - nbnodei.level;
                                 myseqnum = obj_child.seqnum;
                                 for k = 1:dlevel
                                     myseqnum = floor(myseqnum/2);
                                 end
                                 if myseqnum == nbnodei.seqnum
-                                    break;
-                                end
-                                
+                                    continue;
+                                end                                
                                 obj_child.nbnode{end+1} = nbnodei;
                                 obj_child.nbnodeseqnum(end+1) = nbnodei.seqnum;
                                 obj_child.nbnodelevel(end+1) = nbnodei.level;
@@ -224,9 +215,10 @@ classdef HIFGraph < handle
                                 nbnodei.nbnodeseqnum(end+1) = obj_child.seqnum;
                                 nbnodei.nbnodelevel(end+1) = obj_child.level;
                             end
-                            break;
-                        else
-                            if ~isempty(intersect(obj_child.nb, nbnodei_child.vtx))
+                    else
+                        for it = [1,2]
+                            nbnodei_child = nbnodei.children{it};
+                            if ~isempty(intersect(obj_child.nb,nbnodei_child.vtx))
                                 obj_child.nbnode{end+1} = nbnodei_child;
                                 obj_child.nbnodeseqnum(end+1) = nbnodei_child.seqnum;
                                 obj_child.nbnodelevel(end+1) = nbnodei_child.level;
@@ -252,14 +244,11 @@ classdef HIFGraph < handle
         obj.sep = sort(obj.sep);
         obj.nb = sort(obj.nb);
         
-        if obj.endflag == 0
-            % We only fill the leaf nodes.
-            for iter = [1,2]
-                obj.children{iter} = FillTree(obj.children{iter},A);
-            end
-        else
+        % We only fill the leaf nodes.
+        if obj.endflag == 1
             % First, we set int = vtx - sep (only holds on leaf nodes).
             obj.int = setdiff(obj.vtx,obj.sep,'sorted');
+            
             % Then, we set the corresponding A**.
             obj.AII = full(A(obj.int,obj.int));
             obj.ASI = full(A(obj.sep,obj.int));
@@ -267,13 +256,32 @@ classdef HIFGraph < handle
             obj.ANS = full(A(obj.nb,obj.sep));
             
             % Set sep type.
-            obj = SetSepType(obj);
+            obj = SetSeparatorType(obj);
+        else
+            for iter = [1,2]
+                obj.children{iter} = FillTree(obj.children{iter},A);
+            end
         end
         
         end
         
-        function obj = SetSepType(obj)
-        % SetSepType Set sep type.
+        function obj = RecursiveSetSeparatorType(obj,whatlevel)
+        % RecursiveSetSeparatorType Recusively set separator type.
+        
+        if obj.level == whatlevel
+            obj = SetSeparatorType(obj);
+        else
+            if obj.endflag == 0
+                for iter = [1,2]
+                    obj.children{iter} = RecursiveSetSeparatorType(obj.children{iter},whatlevel);
+                end
+            end
+        end
+        
+        end
+        
+        function obj = SetSeparatorType(obj)
+        % SetSeparatorType Set separator type.
         
         ordersep = zeros(length(obj.sep),1);
         
@@ -322,8 +330,8 @@ classdef HIFGraph < handle
             end
             % Merge.
             obj = RecursiveMerge(obj,tmplevel-1);
-            % SetSepType.
-            obj = RecursiveSetSepType(obj,tmplevel-1);
+            % SetSeparatorType.
+            obj = RecursiveSetSeparatorType(obj,tmplevel-1);
         end
         
         % Root factorization.
@@ -719,25 +727,11 @@ classdef HIFGraph < handle
                 
         end
         
-        function obj = RecursiveSetSepType(obj,whatlevel)
-        % RecursiveSetSepType Recusively set sep type.
-        
-        if obj.level == whatlevel
-            obj = SetSepType(obj);
-        else
-            if obj.endflag == 0
-                for iter = [1,2]
-                    obj.children{iter} = RecursiveSetSepType(obj.children{iter},whatlevel);
-                end
-            end
-        end
-        
-        end
-        
         function obj = HIFClear(obj)
         % HIFClear Clear unnecessary information.
         
-        % TODO: HIFClear.
+        obj.ASS = [];
+        obj.ANS = [];
         
         end
         
@@ -1065,13 +1059,17 @@ classdef HIFGraph < handle
         function x = GetSolution(obj,x)
         % GetSolution Get the final soluion through the tree structure.
         
-        if obj.endflag == 0
+        if obj.endflag == 1
+            x(obj.int,:) = obj.xI;
+            x(obj.sep,:) = obj.xS;
+            obj.xI = [];
+            obj.xS = [];
+        else
+            obj.xI = [];
+            obj.xS = [];
             for iter = [1,2]
                 x = GetSolution(obj.children{iter},x);
             end
-        else
-            x(obj.int,:) = obj.xI;
-            x(obj.sep,:) = obj.xS;
         end
         
         end
