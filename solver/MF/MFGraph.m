@@ -3,23 +3,19 @@ classdef MFGraph < handle
     
     properties
         
-        % Root properties.
-        
+        % Root properties.    
         % The following information will be stored only in the root node.
-        
         inputAxy; % Input Axy.
         active; % Whether a vertex is eliminated.
         demoMF = 0; % Whether to demo the MF process.
         
         % Graph properties.
-        
         vtx; % Vertices on the graph.
         sep; % Separator vertices.
         nb; % Neighbor vertices.
         int; % Interior vertices.
         
         % Tree properties.
-        
         numlevels; % Total number of levels.
         level; % Current level, start from 0.
         seqnum; % A node's order in its level.
@@ -32,10 +28,8 @@ classdef MFGraph < handle
         indexinfo = struct([]); % Index information when merge and split.
         
         % Matrices properties.
-        
         % For the following matrices, the fist index is row, and the second
         % index is col.
-        
         AII; % Interaction between int and int.
         ASI; % Interaction between sep and int.
         ASS; % Interaction between sep and sep.
@@ -45,7 +39,6 @@ classdef MFGraph < handle
         AIIinvAIS; % AIIinvAIS = AII^{-1} * ASI^{T}.
         
         % Vectors properties.
-        
         xI; % The int part of a vector x.
         xS; % The sep part of a vector x.
         
@@ -194,22 +187,20 @@ classdef MFGraph < handle
                     nbnodei = obj.nbnode{i};
                     % What we need is to check whether the vtx of nbnodei's
                     % chilren is in the nb of obj_child.
-                    for it = [1,2]
-                        nbnodei_child = nbnodei.children{it};
-                        if isempty(nbnodei_child)
-                            % The nbnodei doesn't have a child. We should
-                            % look it as a nbnode.
+                    if nbnodei.endflag == 1
+                        % The nbnodei doesn't have a child. We should look 
+                        % it as a nbnode.
                             if ~isempty(intersect(obj_child.nb,nbnodei.vtx))
-                                % NOTE: We have to avoid add one's ancestor as its nbnode.
+                                % NOTE: We have to avoid add one's ancestor 
+                                % as its nbnode.
                                 dlevel = obj_child.level - nbnodei.level;
                                 myseqnum = obj_child.seqnum;
                                 for k = 1:dlevel
                                     myseqnum = floor(myseqnum/2);
                                 end
                                 if myseqnum == nbnodei.seqnum
-                                    break;
-                                end
-                                
+                                    continue;
+                                end                                
                                 obj_child.nbnode{end+1} = nbnodei;
                                 obj_child.nbnodeseqnum(end+1) = nbnodei.seqnum;
                                 obj_child.nbnodelevel(end+1) = nbnodei.level;
@@ -217,9 +208,10 @@ classdef MFGraph < handle
                                 nbnodei.nbnodeseqnum(end+1) = obj_child.seqnum;
                                 nbnodei.nbnodelevel(end+1) = obj_child.level;
                             end
-                            break;
-                        else
-                            if ~isempty(intersect(obj_child.nb, nbnodei_child.vtx))
+                    else
+                        for it = [1,2]
+                            nbnodei_child = nbnodei.children{it};
+                            if ~isempty(intersect(obj_child.nb,nbnodei_child.vtx))
                                 obj_child.nbnode{end+1} = nbnodei_child;
                                 obj_child.nbnodeseqnum(end+1) = nbnodei_child.seqnum;
                                 obj_child.nbnodelevel(end+1) = nbnodei_child.level;
