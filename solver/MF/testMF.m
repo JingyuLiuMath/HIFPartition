@@ -2,7 +2,7 @@
 [A,xy] = grid5(32);
 
 %% 3D example.
-[A,xy] = grid3d(16);
+[A,xy] = grid3d(64);
 
 %% Triangular example.
 [A,xy] = gridt(32);
@@ -14,7 +14,7 @@ if exist("xy")
 else
     Axy.xy = [];
 end
-minvtx = 16;
+minvtx = 64;
 method = "metis";
 % method = "meshpart_specpart";
 % method = "meshpart_geopart";

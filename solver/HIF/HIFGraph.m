@@ -640,22 +640,22 @@ classdef HIFGraph < handle
         % int: children's sk - sep.
         % sep: sep \cup children's sk.
         % nb: nb \cup children's nbsk.
-%         tmp = [];
-%         for iter = [1,2]
-%             obj.int = [obj.int,obj.children{iter}.sk];
-%             tmp = [tmp,obj.children{iter}.nbsk];
-%         end
-%         obj.sep = intersect(obj.sep,obj.int,'sorted');
-%         obj.int = setdiff(obj.int,obj.sep,'sorted');
-%         obj.nb = intersect(obj.nb,tmp,'sorted');
+        tmp = [];
         for iter = [1,2]
             obj.int = [obj.int,obj.children{iter}.sk];
-            obj.re = [obj.re,obj.children{iter}.re];
-            obj.nbre = [obj.nbre,obj.children{iter}.nbre];
+            tmp = [tmp,obj.children{iter}.nbsk];
         end
-        obj.sep = setdiff(obj.sep,obj.re,'sorted');
+        obj.sep = intersect(obj.sep,obj.int,'sorted');
         obj.int = setdiff(obj.int,obj.sep,'sorted');
-        obj.nb = setdiff(obj.nb,obj.nbre,'sorted');
+        obj.nb = intersect(obj.nb,tmp,'sorted');
+%         for iter = [1,2]
+%             obj.int = [obj.int,obj.children{iter}.sk];
+%             obj.re = [obj.re,obj.children{iter}.re];
+%             obj.nbre = [obj.nbre,obj.children{iter}.nbre];
+%         end
+%         obj.sep = setdiff(obj.sep,obj.re,'sorted');
+%         obj.int = setdiff(obj.int,obj.sep,'sorted');
+%         obj.nb = setdiff(obj.nb,obj.nbre,'sorted');
         
         
         % Next we assign the corresponding matrices.
