@@ -672,10 +672,8 @@ classdef HIFGraph < handle
         % from the child's ASS. Otherwise, we assign AII from one child's
         % ANS or 0.
         obj.AII = zeros(length(obj.int));
-        [int1,myindex_int1,~] = intersect(obj.int,obj.children{1}.vtx);
-        [~,cindex_int1] = ismember(int1,obj.children{1}.sep);
-        [int2,myindex_int2,~] = intersect(obj.int,obj.children{2}.vtx);
-        [~,cindex_int2] = ismember(int2,obj.children{2}.sep);
+        [~,myindex_int1,cindex_int1] = intersect(obj.int,obj.children{1}.sep);
+        [~,myindex_int2,cindex_int2] = intersect(obj.int,obj.children{2}.sep);
         [~,myindex_int21,cindex_int21] = intersect(obj.int,obj.children{1}.nb);
         obj.indexinfo(1).myindex_int = myindex_int1;
         obj.indexinfo(1).cindex_int = cindex_int1;
@@ -705,10 +703,8 @@ classdef HIFGraph < handle
         % If two seps belongs to the same child, we assign ASS from the
         % child's ASS. Otherwise, we assign ASS from one child's ANS or 0.
         obj.ASS = zeros(length(obj.sep));
-        [sep1,myindex_sep1,~] = intersect(obj.sep,obj.children{1}.vtx);
-        [~,cindex_sep1] = ismember(sep1,obj.children{1}.sep);
-        [sep2,myindex_sep2,~] = intersect(obj.sep,obj.children{2}.vtx);
-        [~,cindex_sep2] = ismember(sep2,obj.children{2}.sep);
+        [~,myindex_sep1,cindex_sep1] = intersect(obj.sep,obj.children{1}.sep);
+        [~,myindex_sep2,cindex_sep2] = intersect(obj.sep,obj.children{2}.sep);
         [~,myindex_sep21,cindex_sep21] = intersect(obj.sep,obj.children{1}.nb);
         obj.indexinfo(1).myindex_sep = myindex_sep1;
         obj.indexinfo(1).cindex_sep = cindex_sep1;

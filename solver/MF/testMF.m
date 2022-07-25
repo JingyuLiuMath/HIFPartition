@@ -2,7 +2,7 @@
 [A,xy] = grid5(32);
 
 %% 3D example.
-[A,xy] = grid3d(64);
+[A,xy] = grid3d(16);
 
 %% Triangular example.
 [A,xy] = gridt(32);
