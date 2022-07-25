@@ -40,5 +40,5 @@ disp(norm(xsol - x)/norm(x))
 I = eye(size(A,1));
 Ainv = MFSolve(MF,I);
 dA = Ainv - inv(A);
-disp(" Norm(dA):")
-disp(norm(dA,"Inf"))
+disp(" norm(dA) / Norm(A):")
+disp(norm(dA,"Inf") / norm(A, "Inf"))
