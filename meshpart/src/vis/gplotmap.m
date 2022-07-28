@@ -43,7 +43,7 @@ hold on
 % Count and plot the separating edges.
 [i,j] = find(A);
 f = find(map(i) > map(j));
-xlabel([int2str(length(f)) ' cut edges'],'visible','on');
+% xlabel([int2str(length(f)) ' cut edges'],'visible','on');
 cut = sparse(i(f),j(f),1,n,n);
 set(gplotg(cut,xy,'-'),'color',ecolor);
 
