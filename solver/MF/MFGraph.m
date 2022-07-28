@@ -774,7 +774,10 @@ classdef MFGraph < handle
         disp(" Current level: " + whatlevel);
         disp("  ");
         
-        
+%         fig = figure();
+%         clf reset;
+%         colordef(fig,'black');
+%         gplotg(obj.inputAxy.A,obj.inputAxy.xy);
         map = GetPartMap(obj,whatlevel);
         inactive = find(obj.active == 0);
         start = max(map) + 1;
