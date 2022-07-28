@@ -785,9 +785,9 @@ classdef MFGraph < handle
         fig = figure();
         clf reset;
         colordef(fig,'black');
-      
-        map = GetPartMap(obj,whatlevel);
+        gplotg(speye(size(obj.inputAxy.A)),obj.inputAxy.xy);
         
+        map = GetPartMap(obj,whatlevel);
         tmpactive = find(obj.active > 0);
         parts = unique(map);
         nparts = length(parts);
@@ -812,7 +812,7 @@ classdef MFGraph < handle
         disp("  ");
         pause;
         
-        end
+         end
         
         function levelVec = ReadLevel(obj,levelVec)
         % ReadLevel Obtain level vectors.
