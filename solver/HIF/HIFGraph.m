@@ -322,6 +322,10 @@ classdef HIFGraph < handle
         for tmplevel = obj.numlevels:-1:1
             % Sparse elimination.
             obj = RecursiveSparseElim(obj,tmplevel);
+            % Demo the process.
+            if obj.demoHIF == 1
+                DemoHIF(obj,tmplevel);
+            end
             % Skeletonization.
             obj = RecursiveSkel(obj,tmplevel,tol);
             % Demo the process.
@@ -1172,13 +1176,21 @@ classdef HIFGraph < handle
         fig = figure();
         clf reset;
         colordef(fig,'black');
-        gplotg(obj.inputAxy.A,obj.inputAxy.xy);
+        gplotg(speye(size(obj.inputAxy.A)),obj.inputAxy.xy);
         
-        disp(" Hit space to continue ... ");
-        disp("  ");
-        pause;
         map = GetPartMap(obj,obj.numlevels);
-        gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
+        parts = unique(map);
+        nparts = length(parts);
+        tmpA = obj.inputAxy.A;
+        for i = 1:nparts
+            for j = i + 1:nparts
+                idi = find(map == i);
+                idj = find(map == j);
+                tmpA(idi,idj) = 0;
+                tmpA(idj,idi) = 0;
+            end
+        end
+        gplotmap(tmpA,obj.inputAxy.xy,map);
         disp(" Hit space to end ... ");
         disp("  ");
         pause;
@@ -1198,16 +1210,31 @@ classdef HIFGraph < handle
         disp(" Current level: " + whatlevel);
         disp("  ");
         
-%         fig = figure();
-%         clf reset;
-%         colordef(fig,'black');
-%         gplotg(obj.inputAxy.A,obj.inputAxy.xy);
+        fig = figure();
+        clf reset;
+        colordef(fig,'black');
+        % gplotg(speye(size(obj.inputAxy.A)),obj.inputAxy.xy);
+        
         map = GetPartMap(obj,whatlevel);
-        inactive = find(obj.active == 0);
-        start = max(map) + 1;
-        n = length(inactive);
-        map(inactive) = start:start+n-1;
-        gplotmap(obj.inputAxy.A,obj.inputAxy.xy,map);
+        tmpactive = find(obj.active > 0);
+        parts = unique(map);
+        nparts = length(parts);
+        tmpA = obj.inputAxy.A;
+        for i = 1:nparts
+            for j = i + 1:nparts
+                idi = find(map == i);
+                idj = find(map == j);
+                tmpA(idi,idj) = 0;
+                tmpA(idj,idi) = 0;
+            end
+        end
+        tmpA = tmpA(tmpactive,tmpactive);
+        tmpxy = obj.inputAxy.xy(tmpactive,:);
+        tmpmap = map(1,tmpactive);
+        gplotmap(tmpA,tmpxy,tmpmap);
+        if size(obj.inputAxy.xy,2) == 3
+            view(3);
+        end
         if whatlevel ~= 0
             disp(" Hit space to continue ...");
         else

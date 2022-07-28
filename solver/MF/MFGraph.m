@@ -785,7 +785,7 @@ classdef MFGraph < handle
         fig = figure();
         clf reset;
         colordef(fig,'black');
-        gplotg(speye(size(obj.inputAxy.A)),obj.inputAxy.xy);
+        % gplotg(speye(size(obj.inputAxy.A)),obj.inputAxy.xy);
         
         map = GetPartMap(obj,whatlevel);
         tmpactive = find(obj.active > 0);
@@ -804,6 +804,9 @@ classdef MFGraph < handle
         tmpxy = obj.inputAxy.xy(tmpactive,:);
         tmpmap = map(1,tmpactive);
         gplotmap(tmpA,tmpxy,tmpmap);
+        if size(obj.inputAxy.xy,2) == 3
+            view(3);
+        end
         if whatlevel ~= 0
             disp(" Hit space to continue ...");
         else
