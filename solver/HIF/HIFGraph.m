@@ -485,6 +485,15 @@ classdef HIFGraph < handle
             end
             
             [T1,p11,p12] = ID(skelmtx1,tol); % skelmtx1(:,p12) = skelmtx1(:,p11) * T1.
+            
+            tmpmtx1 = skelmtx1(:,p11) * T1 - skelmtx1(:,p12);
+            if norm(tmpmtx1) / norm(skelmtx1) > 0.008
+                disp("F-norm of tmpmtx1");
+                disp(norm(tmpmtx1))
+                disp("relative F-norm of tmpmtx1")
+                disp(norm(tmpmtx1) / norm(skelmtx1));
+            end
+            
             myindex_p11 = myindex_sep1(p11);
             myindex_p12 = myindex_sep1(p12);
             nodekindex_p11 = nodekindex_sep1(p11);
@@ -499,6 +508,15 @@ classdef HIFGraph < handle
             obj.nbinfo(k).nodekindex_p12 = nodekindex_p12;
             
             [T2,p21,p22] = ID(skelmtx2,tol); % skelmtx2(:,p22) = skelmtx1(:,p21) * T2.
+            
+            tmpmtx2 = skelmtx2(:,p21) * T2 - skelmtx2(:,p22);
+            if norm(tmpmtx2) / norm(skelmtx2) > 0.008
+                disp("F-norm of tmpmtx2");
+                disp(norm(tmpmtx2))
+                disp("relative F-norm of tmpmtx2")
+                disp(norm(tmpmtx2) / norm(skelmtx2));
+            end
+            
             myindex_p21 = myindex_sep2(p21);
             myindex_p22 = myindex_sep2(p22);
             nodekindex_p21 = nodekindex_sep2(p21);
