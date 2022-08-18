@@ -319,9 +319,9 @@ classdef MFGraph < handle
         % ASI = 0.
         
         % DEBUG: Check whether the int is decoupled with other vertices.
-        % obj.root.inputAxy.A(obj.int,obj.int) = 0;
-        % obj.root.inputAxy.A(obj.int,obj.sep) = 0;
-        % obj.root.inputAxy.A(obj.sep,obj.int) = 0;
+        obj.root.inputAxy.A(obj.int,obj.int) = 0;
+        obj.root.inputAxy.A(obj.int,obj.sep) = 0;
+        obj.root.inputAxy.A(obj.sep,obj.int) = 0;
         
         end
         
@@ -433,7 +433,10 @@ classdef MFGraph < handle
         function obj = MFClear(obj)
         % HIFClear Clear unnecessary information.
         
-        % TODO: MFClear.
+        obj.AII = 0;
+        obj.ASI = 0;
+        obj.ASS = 0;
+        obj.ANS = 0;
         
         end
         
@@ -445,7 +448,7 @@ classdef MFGraph < handle
         [obj.LI,obj.DI] = ldl(obj.AII);
         
         % DEBUG: Check whether the int is decoupled with other vertices.
-        % obj.root.inputAxy.A(obj.int,obj.int) = 0;
+        obj.root.inputAxy.A(obj.int,obj.int) = 0;
         
         end
         
