@@ -318,6 +318,11 @@ classdef MFGraph < handle
         obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS;
         % ASI = 0.
         
+        % DEBUG: Check whether the int is decoupled with other vertices.
+        % obj.root.inputAxy.A(obj.int,obj.int) = 0;
+        % obj.root.inputAxy.A(obj.int,obj.sep) = 0;
+        % obj.root.inputAxy.A(obj.sep,obj.int) = 0;
+        
         end
         
         function obj = RecursiveMerge(obj,whatlevel)
@@ -438,6 +443,9 @@ classdef MFGraph < handle
         obj.root.active(obj.int) = 0;
         % AII = LI * DI * LI^{T}.
         [obj.LI,obj.DI] = ldl(obj.AII);
+        
+        % DEBUG: Check whether the int is decoupled with other vertices.
+        % obj.root.inputAxy.A(obj.int,obj.int) = 0;
         
         end
         

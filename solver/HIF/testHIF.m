@@ -31,7 +31,7 @@ HIF = Factorization(HIF,tol,demoHIF);
 % profsave(profile('info'),'profile_HIF')
 
 %% Solve linear systems.
-x = rand(size(A,1),1);
+x = ones(size(A,1),1);
 b = A*x;
 xsol = HIFSolve(HIF,b);
 disp(" Relative error:")
@@ -43,3 +43,8 @@ Ainv = HIFSolve(HIF,I);
 dA = Ainv - inv(A);
 disp(" norm(dA) / Norm(A):")
 disp(norm(dA,"Inf") / norm(A, "Inf"))
+
+ imagesc(abs(dA))
+
+ % 2986: 10, 186, 0
+ % 1706: 10, 106, 0
