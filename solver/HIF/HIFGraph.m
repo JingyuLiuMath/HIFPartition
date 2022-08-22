@@ -144,7 +144,10 @@ classdef HIFGraph < handle
         % PassSeparatorNeighbor Send parent's sep, nb to children.
         
         nbA = A(obj.sep,obj.nb);
-        
+        addsep1 = [];
+        addnb1 = [];
+        addsep2 = [];
+        addnb2 = [];
         for i = 1:length(obj.sep)
             sepi = obj.sep(i);
             for iter = [1, 2]
@@ -153,23 +156,21 @@ classdef HIFGraph < handle
                 if isempty(index_sepi_childnode)
                     continue;
                 end
-                % Now sepi is a vtx of child.
-                index_sepi_childsep = find(obj_child.sep == sepi,1);
-                if isempty(index_sepi_childsep)
-                    obj_child.sep = [obj_child.sep,sepi];
-                end
-                index_addnb_nb = find(nbA(i,:)~=0);% index_addnb_nb is always nonempty!
-                for j = 1: length(index_addnb_nb)
-                    addnbj = obj.nb(index_addnb_nb(j)); % addnbj is a neighbour vtx.
-                    index_addnbj_childnb = find(obj_child.nb == addnbj,1);
-                    % index_addnb_childnb may be nonempty (addnbj has been added).
-                    if isempty(index_addnbj_childnb)
-                        % Now addnbj is NOT in child's nb, we need to add nb.
-                        obj_child.nb = [obj_child.nb,addnbj];
-                    end
+                index_addnb = find(nbA(i,:)~=0);
+                addnb = obj.nb(index_addnb);
+                if iter == 1
+                    addsep1 = [addsep1,sepi];
+                    addnb1 = [addnb1, addnb];
+                else
+                    addsep2 = [addsep2,sepi];
+                    addnb2 = [addnb2, addnb];
                 end
             end
         end
+        obj.children{1}.sep = sort(unique([obj.children{1}.sep,addsep1]));
+        obj.children{2}.sep = sort(unique([obj.children{2}.sep,addsep2]));
+        obj.children{1}.nb = sort(unique([obj.children{1}.nb,addnb1]));
+        obj.children{2}.nb = sort(unique([obj.children{2}.nb,addnb2]));
         
         end
         
@@ -290,7 +291,7 @@ classdef HIFGraph < handle
         
         function obj = SetSeparatorType(obj)
         % SetSeparatorType Set separator type.
-        
+
         ordersep = zeros(length(obj.sep),1);
         
         for k = 1:length(obj.nbnode)
@@ -300,12 +301,15 @@ classdef HIFGraph < handle
             ordersep(tmp) = ordersep(tmp) + 1;
         end
         
+        obj.complexsep = obj.sep;
         for k = 1:length(obj.nbnode)
             obj.singlesep{k} = obj.sep(intersect(find(ordersep == 1),obj.singlesep{k}));
+            obj.complexsep = setdiff(obj.complexsep,obj.singlesep{k});
         end
         
-        obj.complexsep = obj.sep(ordersep > 1);
-        % obj.complexsep = sort([obj.complexsep,obj.sep(ordersep == 0)]);
+        % obj.complexsep = obj.sep(ordersep > 1);
+        % There exists the case where ordersep == 0 is not empty, so this
+        % is wrong.
         
         end
         
@@ -314,9 +318,9 @@ classdef HIFGraph < handle
         
         if nargin == 1
             disp(" ");
-            disp(" Default tol :1e-2 ");
+            disp(" Default tol :1e-3 ");
             disp(" ");
-            tol = 1e-2;
+            tol = 1e-3;
             demoHIF = 0;
         end
         
@@ -389,6 +393,11 @@ classdef HIFGraph < handle
         obj.ASS = obj.ASS - obj.ASI*obj.AIIinvAIS;
         % ASI = 0;
         
+        % DEBUG: Check whether the int is decoupled with other vertices.
+        obj.root.inputAxy.A(obj.int,obj.int) = 0;
+        obj.root.inputAxy.A(obj.int,obj.sep) = 0;
+        obj.root.inputAxy.A(obj.sep,obj.int) = 0;
+        
         end
         
         function obj = RecursiveSkel(obj,whatlevel,tol)
@@ -436,18 +445,18 @@ classdef HIFGraph < handle
             mysep1C = sort(mysep1C);
             nodeksep1C = setdiff(nodek.nb,sep1,'sorted');
             
-%             tmpsep = setdiff(obj.sep,sep1,'sorted');
-%             if (length(tmpsep) ~= length(mysep1C))
-%                 a = 0;
-%             end
-%             
-%             if min(tmpsep == mysep1C) == 0
-%                 a = 0;
-%             end
+            tmpsep = setdiff(obj.sep,sep1,'sorted');
+            if (length(tmpsep) ~= length(mysep1C))
+                a = 0;
+            end
+             
+            if min(tmpsep == mysep1C) == 0
+                a = 0;
+            end
             
             
             % debug:
-            % nodeksep1C = intersect(nodeksep1C,obj.sep,'sorted');
+            nodeksep1C = intersect(nodeksep1C,obj.sep,'sorted');
             
             korder = find(nodek.nbnodeseqnum == obj.seqnum);
             if length(korder) > 1
@@ -468,7 +477,7 @@ classdef HIFGraph < handle
             mysep2C = setdiff(obj.nb,sep2,'sorted');
             
             % debug:
-            % mysep2C = intersect(mysep2C,nodek.sep,'sorted');
+            mysep2C = intersect(mysep2C,nodek.sep,'sorted');
             
             % The following data are indices.
             [~,myindex_sep1] = ismember(sep1,obj.sep);
@@ -556,8 +565,7 @@ classdef HIFGraph < handle
             % Ah2c2 = Ah2c2 - Ah2h2 * Th2c2.
             nodek.ASS(nodekindex_p21,nodekindex_p22) = nodek.ASS(nodekindex_p21,nodekindex_p22) - Ah2h2T2;
             nodek.ASS(nodekindex_p22,nodekindex_p21) = nodek.ASS(nodekindex_p21,nodekindex_p22)';
-            % Ad1c1 = Ac1d1 = 0, At1c1 = Ac1t1 = 0.
-            % Affect the results.
+%             % Ad1c1 = Ac1d1 = 0, At1c1 = Ac1t1 = 0.
 %             obj.ASS(myindex_sep1C,myindex_p12) = 0;
 %             obj.ASS(myindex_p12,myindex_sep1C) = 0;
 %             % Ad2c1 = Ac1d2 = 0.
@@ -570,6 +578,20 @@ classdef HIFGraph < handle
 %             nodek.ANS(nodekindex_nodeksep1C,nodekindex_p22) = 0;
 %             obj.ANS(myindex_p12,myindex_nodeksep1C) = 0;
             
+            % DEBUG: Check whether the int is decoupled with other vertices.
+            sep1_p11 = sep1(p11);
+            sep1_p12 = sep1(p12);
+            sep2_p21 = sep2(p21);
+            sep2_p22 = sep2(p22);
+            obj.root.inputAxy.A(mysep1C,sep1_p12) = 0;
+            obj.root.inputAxy.A(sep1_p12,mysep1C) = 0;
+            obj.root.inputAxy.A(mysep2C,sep1_p12) = 0;
+            obj.root.inputAxy.A(sep1_p12,mysep2C) = 0;
+            obj.root.inputAxy.A(nodeksep2C,sep2_p22) = 0;
+            obj.root.inputAxy.A(sep2_p22,nodeksep2C) = 0;
+            obj.root.inputAxy.A(nodeksep1C,sep2_p22) = 0;
+            obj.root.inputAxy.A(sep2_p22,nodeksep1C) = 0;
+        
             % Step 2
             % Ac1c1 = Lc1 * Dc1 * Lc1^{T}.
             [L1,D1] = ldl(obj.ASS(myindex_p12,myindex_p12));      
@@ -611,6 +633,13 @@ classdef HIFGraph < handle
 %             obj.ANS(myindex_p21,myindex_p12) = 0;
 %             nodek.ANS(nodekindex_p12,nodekindex_p21) = 0;
             
+            % DEBUG: Check whether the int is decoupled with other vertices.
+            obj.root.inputAxy.A(sep1_p12,sep1_p12) = 0;
+            obj.root.inputAxy.A(sep1_p11,sep1_p12) = 0;
+            obj.root.inputAxy.A(sep1_p12,sep1_p11) = 0;
+            obj.root.inputAxy.A(sep2,sep1_p12) = 0;
+            obj.root.inputAxy.A(sep1_p12,sep2) = 0;
+            
             % Step 3
             % Ac2c2 = Lc2 * Dc2 * Lc2^{T};
             [L2,D2] = ldl(nodek.ASS(nodekindex_p22,nodekindex_p22));
@@ -647,6 +676,13 @@ classdef HIFGraph < handle
 %             nodek.ASS(:,nodekindex_p22) = 0;
 %             nodek.ANS(:,nodekindex_p22) = 0;
 %             obj.ANS(myindex_p22,:) = 0;
+            
+            % DEBUG: Check whether the int is decoupled with other vertices.
+            obj.root.inputAxy.A(sep2_p22,sep2_p22) = 0;
+            obj.root.inputAxy.A(sep2_p21,sep2_p22) = 0;
+            obj.root.inputAxy.A(sep2_p22,sep2_p21) = 0;
+            obj.root.inputAxy.A(sep1_p11,sep2_p22) = 0;
+            obj.root.inputAxy.A(sep2_p22,sep1_p11) = 0;
         end
         
         obj.re = sort(obj.re);
@@ -789,6 +825,9 @@ classdef HIFGraph < handle
         obj.root.active(obj.int) = 0;
         % AII = LI * DI * LI^{T}.
         [obj.LI,obj.DI] = ldl(obj.AII);
+        
+        % DEBUG: Check whether the int is decoupled with other vertices.
+        obj.root.inputAxy.A(obj.int,obj.int) = 0;
         
         end
         

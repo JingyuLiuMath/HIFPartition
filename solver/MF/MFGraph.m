@@ -137,7 +137,10 @@ classdef MFGraph < handle
         % PassSeparatorNeighbor Send parent's sep, nb to children.
         
         nbA = A(obj.sep,obj.nb);
-        
+        addsep1 = [];
+        addnb1 = [];
+        addsep2 = [];
+        addnb2 = [];
         for i = 1:length(obj.sep)
             sepi = obj.sep(i);
             for iter = [1, 2]
@@ -146,23 +149,21 @@ classdef MFGraph < handle
                 if isempty(index_sepi_childnode)
                     continue;
                 end
-                % Now sepi is a vtx of child.
-                index_sepi_childsep = find(obj_child.sep == sepi,1);
-                if isempty(index_sepi_childsep)
-                    obj_child.sep = [obj_child.sep,sepi];
-                end
-                index_addnb_nb = find(nbA(i,:)~=0);% index_addnb_nb is always nonempty!
-                for j = 1: length(index_addnb_nb)
-                    addnbj = obj.nb(index_addnb_nb(j)); % addnbj is a neighbour vtx.
-                    index_addnbj_childnb = find(obj_child.nb == addnbj,1);
-                    % index_addnb_childnb may be nonempty (addnbj has been added).
-                    if isempty(index_addnbj_childnb)
-                        % Now addnbj is NOT in child's nb, we need to add nb.
-                        obj_child.nb = [obj_child.nb,addnbj];
-                    end
+                index_addnb = find(nbA(i,:)~=0);
+                addnb = obj.nb(index_addnb);
+                if iter == 1
+                    addsep1 = [addsep1,sepi];
+                    addnb1 = [addnb1, addnb];
+                else
+                    addsep2 = [addsep2,sepi];
+                    addnb2 = [addnb2, addnb];
                 end
             end
         end
+        obj.children{1}.sep = sort(unique([obj.children{1}.sep,addsep1]));
+        obj.children{2}.sep = sort(unique([obj.children{2}.sep,addsep2]));
+        obj.children{1}.nb = sort(unique([obj.children{1}.nb,addnb1]));
+        obj.children{2}.nb = sort(unique([obj.children{2}.nb,addnb2]));
         
         end
         
