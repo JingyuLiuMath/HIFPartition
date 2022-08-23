@@ -434,10 +434,10 @@ classdef MFGraph < handle
         function obj = MFClear(obj)
         % HIFClear Clear unnecessary information.
         
-        obj.AII = 0;
-        obj.ASI = 0;
-        obj.ASS = 0;
-        obj.ANS = 0;
+        obj.AII = [];
+        obj.ASI = [];
+        obj.ASS = [];
+        obj.ANS = [];
         
         end
         

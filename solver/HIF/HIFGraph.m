@@ -32,6 +32,8 @@ classdef HIFGraph < handle
         nbnodelevel = []; % Neighbor nodes' level.
         root; % Root node.
         nbinfo = struct([]); % Information between a node and its nbnode when skeletonization.
+        copy = 0; % Whether it is a copy HIFGraph of its parerent.
+        havecopy = 0; % Whether it has a copy.
         indexinfo = struct([]); % Index information of a node and its children.
         
         % Matrices properties.
@@ -195,43 +197,26 @@ classdef HIFGraph < handle
                 % What we need is to check whether the vtx of nbnodei's
                 % chilren is in the nb of obj_child.
                 if nbnodei.endflag == 1
-                    % The nbnodei doesn't have a child. We should look
-                    % it as a nbnode.
-                    if ~isempty(intersect(obj_child.nb,nbnodei.sep))
-                        % NOTE: We have to avoid add one's ancestor
-                        % as its nbnode.
-                        dlevel = obj_child.level - nbnodei.level;
-                        myseqnum = obj_child.seqnum;
-                        for k = 1:dlevel
-                            myseqnum = floor(myseqnum/2);
-                        end
-                        if myseqnum == nbnodei.seqnum
-                            continue;
-                        end
-                        if isempty(intersect(find(obj_child.nbnodeseqnum == nbnodei.seqnum),...
-                                    find(obj_child.level == nbnodei.level)))
-                            obj_child.nbnode{end+1} = nbnodei;
-                            obj_child.nbnodeseqnum(end+1) = nbnodei.seqnum;
-                            obj_child.nbnodelevel(end+1) = nbnodei.level;
-                            nbnodei.nbnode{end+1} = obj_child;
-                            nbnodei.nbnodeseqnum(end+1) = obj_child.seqnum;
-                            nbnodei.nbnodelevel(end+1) = obj_child.level;
-                        else
-                            a = 0;
-                        end
+                    if nbnodei.havecopy == 0
+                        nbnodei.children{1} = HIFGraph([],[],[],nbnodei.level+1,nbnodei.seqnum*2,...
+                            nbnodei.vtx,nbnodei.sep,nbnodei.nb);
+                        nbnodei.children{1}.endflag = 1;
+                        nbnodei.children{1}.copy = 1;  
+                        nbnodei.havecopy = 1;
+                    end
+                    nbnodei_child = nbnodei.children{1};
+                    if ~isempty(intersect(obj_child.nb,nbnodei_child.sep))
+                        obj_child.nbnode{end+1} = nbnodei_child;
+                        obj_child.nbnodeseqnum(end+1) = nbnodei_child.seqnum;
+                        obj_child.nbnodelevel(end+1) = nbnodei_child.level;
                     end
                 else
                     for it = [1,2]
                         nbnodei_child = nbnodei.children{it};
                         if ~isempty(intersect(obj_child.nb,nbnodei_child.sep))
-                            if isempty(intersect(find(obj_child.nbnodeseqnum == nbnodei_child.seqnum),...
-                                    find(obj_child.level == nbnodei_child.level)))
-                                obj_child.nbnode{end+1} = nbnodei_child;
-                                obj_child.nbnodeseqnum(end+1) = nbnodei_child.seqnum;
-                                obj_child.nbnodelevel(end+1) = nbnodei_child.level;
-                            else
-                                a = 0;
-                            end
+                            obj_child.nbnode{end+1} = nbnodei_child;
+                            obj_child.nbnodeseqnum(end+1) = nbnodei_child.seqnum;
+                            obj_child.nbnodelevel(end+1) = nbnodei_child.level;
                         end
                     end
                 end
@@ -422,7 +407,7 @@ classdef HIFGraph < handle
         for k = 1:length(obj.nbnode)
             % We do skel according to nbnode.
             nodek = obj.nbnode{k};
-            if nodek.level ~= obj.level
+            if nodek.level ~= obj.level || nodek.copy == 1
                 obj.nbinfo(k).empty = 1;
                 continue;
             end
@@ -444,17 +429,7 @@ classdef HIFGraph < handle
             mysep1C = [mysep1C,obj.complexsep];
             mysep1C = sort(mysep1C);
             nodeksep1C = setdiff(nodek.nb,sep1,'sorted');
-            
-            tmpsep = setdiff(obj.sep,sep1,'sorted');
-            if (length(tmpsep) ~= length(mysep1C))
-                a = 0;
-            end
-             
-            if min(tmpsep == mysep1C) == 0
-                a = 0;
-            end
-            
-            
+                    
             % debug:
             nodeksep1C = intersect(nodeksep1C,obj.sep,'sorted');
             
@@ -814,6 +789,8 @@ classdef HIFGraph < handle
         function obj = HIFClear(obj)
         % HIFClear Clear unnecessary information.
         
+        obj.AII = [];
+        obj.ASI = [];
         obj.ASS = [];
         obj.ANS = [];
         
