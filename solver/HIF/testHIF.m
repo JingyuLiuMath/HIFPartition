@@ -43,3 +43,21 @@ Ainv = HIFSolve(HIF,I);
 dA = Ainv - inv(A);
 disp(" norm(dA) / Norm(A):")
 disp(norm(dA,"Inf") / norm(A, "Inf"))
+
+%% Worse case.
+AHIFinvA = A;
+AHIFinvA = HIFSolve(HIF, AHIFinvA);
+B = AHIFinvA - speye(size(AHIFinvA));
+[u,s,v] = svds(B,1);
+x = v;
+b = A*x;
+xsol = HIFSolve(HIF,b);
+disp(" Relative error:")
+disp(norm(xsol - x)/norm(x))
+
+%% All one vector.
+x = ones(size(A,2),1);
+b = A*x;
+xsol = HIFSolve(HIF,b);
+disp(" Relative error:")
+disp(norm(xsol - x)/norm(x))
