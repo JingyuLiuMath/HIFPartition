@@ -1,12 +1,10 @@
 % run("/home/jyliu/GenerateMatrices/meshpart/meshpart_startup.m")
 
-nvec = [16, 32, 64, 128];
-
+nvec = [16];
 minvtx = 64;
 method = "metis";
 tol = 1e-3;
 demoHIF = 0;
-    
 for i = 1:length(nvec)
     n = nvec(i);
     [A,xy] = grid3d(n);
@@ -21,10 +19,12 @@ for i = 1:length(nvec)
     HIF = Factorization(HIF,tol,demoHIF);
     
     % Worst case.
-    AHIFinvA = A;
-    AHIFinvA = HIFSolve(HIF, AHIFinvA);
-    B = AHIFinvA - speye(size(AHIFinvA));
-    [u,s,v] = svds(B,1);
+    AHIFinvAop = @(x,str) (str == "notransp") * HIFSolve(HIF,A*x) + (str == "transp") * A*HIFSolve(HIF,x);     
+%     AHIFinvA = A;
+%     AHIFinvA = HIFSolve(HIF, AHIFinvA);
+%     B = AHIFinvA - speye(size(AHIFinvA));
+%     [u,s,v] = svds(B,1);
+    [u,s,v] = svds(AHIFinvAop, [size(A,1),size(A,2)], 1);
     x = v;
     b = A*x;     
     xsol = HIFSolve(HIF,b);
