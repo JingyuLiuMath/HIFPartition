@@ -1,5 +1,5 @@
 function Solver_Startup()
-% Solver_Startup  Startup file for partitions.
+% Solver_Startup  Startup file for HIF.
 
 % meshpart
 run("..\meshpart\meshpart_startup.m")
