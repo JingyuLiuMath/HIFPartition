@@ -32,7 +32,7 @@ HIF = Factorization(HIF, tol, HIFalg, demoHIF);
 % profile viewer
 
 %% Solve linear systems.
-x = rand(size(A, 1), 1);
+x = randn(size(A, 1), 1);
 b = A * x;
 xsol = HIFSolve(HIF, b);
 disp("Relative error:");
